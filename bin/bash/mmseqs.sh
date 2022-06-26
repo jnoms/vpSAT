@@ -1,4 +1,4 @@
-#!/bin/#!/usr/bin/env bash
+#!/usr/bin/env bash
 
 #------------------------------------------------------------------------------#
 # Defining usage and setting input
@@ -86,7 +86,7 @@ IS_DATABASE: $IS_DATABASE
 "
 
 # Derive output directory
-OUT_DIR=$(dirname $SUBJECT)
+OUT_DIR=$(dirname $OUTFILE)
 
 # Make output directory if needed
 mkdir -p $OUT_DIR
