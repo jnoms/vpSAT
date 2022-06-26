@@ -137,7 +137,7 @@ if $CLEAN_UP ; then
     echo "$0: Cleaning up." 
     rm ${OUTFILE}.*
     rm  ${OUT_DIR}/${NAME}_query_database*
-    rm ${OUT_DIR}/${NAME}_result_database
+    rm ${OUT_DIR}/${NAME}_result_database*
     rm -r ${OUT_DIR}/tmp
 
     # If input was database, don't want to delete it. But if input was fasta,
