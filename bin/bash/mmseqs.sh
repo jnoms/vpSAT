@@ -22,7 +22,8 @@ usage() {
             made mmseqs2 database (set by -d switch). Fasta can be gzipped.
         -o --OUTFILE {a3m}
             Path to the output a3m file. Necessary output directories will be 
-            created.
+            created. Many temporary files and database files will be written to
+            the same directory unless -c switch is specified.
         -n --NAME {string}
             Sample name. Used for naming output databases to avoid name
             conflicts.
@@ -31,6 +32,10 @@ usage() {
         -d --IS_DATABASE
             Boolean switch.
             If specified, will assume SUBJECT file is an mmseqs2 database.
+        -c --CLEAN_UP
+            Boolean switch.
+            If specified, will delete all intermediate/unncessary files from
+            the result directory, leaving just the a3m. 
         "
 }
 
@@ -42,9 +47,10 @@ fi
 
 # Boolean flag defaults
 IS_DATABASE=false
+CLEAN_UP=false
 
 #Setting input
-while getopts q:s:o:n:d option ; do
+while getopts q:s:o:n:dc option ; do
         case "${option}"
         in
                 q) QUERY=${OPTARG};;
@@ -52,6 +58,7 @@ while getopts q:s:o:n:d option ; do
                 o) OUTFILE=${OPTARG};;
                 n) NAME=${OPTARG};;
                 d) IS_DATABASE=true;;
+                c) CLEAN_UP=true;;
         esac
 done
 
@@ -76,14 +83,17 @@ fi
 # Main
 #------------------------------------------------------------------------------#
 echo "
-Inputs:
+$0 inputs:
 
 QUERY: $QUERY
 SUBJECT: $SUBJECT
 OUTFILE: $OUTFILE
 NAME: $NAME
 IS_DATABASE: $IS_DATABASE
+CLEAN_UP: $CLEAN_UP
 "
+
+echo "$0: Started at $(date)"
 
 # Derive output directory
 OUT_DIR=$(dirname $OUTFILE)
@@ -92,16 +102,20 @@ OUT_DIR=$(dirname $OUTFILE)
 mkdir -p $OUT_DIR
 
 # Convert query and subject (if required) into mmseqs2 databases
+echo "$0: Creating query database."
 mmseqs createdb ${QUERY} "$OUT_DIR/${NAME}_query_database"
 
 if $IS_DATABASE ; then
+    echo "$0: SUBJECT specified as a database."
     SUBJECT_DB=${SUBJECT}
 else
+    echo "$0: Creating subject database."
     mmseqs createdb ${SUBJECT} "${OUT_DIR}/${NAME}_subject_database"
     SUBJECT_DB="${OUT_DIR}/${NAME}_subject_database"
 fi
 
 # Do search
+echo "$0: Doing search."
 mmseqs search \
     ${OUT_DIR}/${NAME}_query_database \
     $SUBJECT_DB \
@@ -110,9 +124,30 @@ mmseqs search \
     $SEARCH_PARAM
 
 # Convert to a3m
+echo "$0: Converting to a3m."
 mmseqs result2msa \
     ${OUT_DIR}/${NAME}_query_database \
     $SUBJECT_DB \
     ${OUT_DIR}/${NAME}_result_database \
     $OUTFILE \
     --msa-format-mode 5
+
+# Cleanup if indicated
+if $CLEAN_UP ; then
+    echo "$0: Cleaning up." 
+    rm ${OUTFILE}.*
+    rm  ${OUT_DIR}/${NAME}_query_database*
+    rm ${OUT_DIR}/${NAME}_result_database
+    rm -r ${OUT_DIR}/tmp
+
+    # If input was database, don't want to delete it. But if input was fasta,
+    # delete it
+    if $IS_DATABASE ; then
+        :
+    else
+        rm ${SUBJECT_DB}*
+    fi
+
+fi
+
+echo "$0: Finished at $(date)"
