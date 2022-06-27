@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 #------------------------------------------------------------------------------#
-# Defining usage and setting input
+# Defining usage and setting inputs
 #------------------------------------------------------------------------------#
 usage() {
         echo "
@@ -70,13 +70,28 @@ SEARCH_PARAM="--num-iterations 3 --db-load-mode 2 -a -s 8 -e 0.1 --max-seqs 1000
 
 
 #------------------------------------------------------------------------------#
-# Validate inputs
+# Validate inputs and program availablity
 #------------------------------------------------------------------------------#
 # Make sure query has only one sequence
 if (( $(grep -c "^>" $QUERY) > 1 )) ; then 
     echo "Query file must contain only one sequence."
     echo "(grep -c "^>" $QUERY) sequences are detected."
     exit 1 
+fi
+
+# Make sure all input files exist
+if [ ! -f $QUERY ] ; then
+    echo "QUERY file, $QUERY, not detected."
+    exit 1
+elif [ ! -f $SUBJECT ] ; then
+    echo "SUBJECT file, $SUBJECT, not detected."
+    exit 1
+fi
+
+# Make sure required programs are available
+if ! command -v mmseqs ; then
+    echo "mmseqs not detected!"
+    exit 1
 fi
 
 #------------------------------------------------------------------------------#
