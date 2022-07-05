@@ -141,7 +141,7 @@ colabfold_batch \
 
 # If OUTFILE is specified, copy the best model to the outfile
 if [[ $OUTFILE != "" ]] ; then
-    cp ${OUT_DIR/*rank_1*.pdb} $OUTFILE
+    cp ${OUT_DIR}/*rank_1*.pdb $OUTFILE
 fi
 
 
