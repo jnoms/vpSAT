@@ -85,7 +85,7 @@ fi
 
 # Make sure input file ends in .a3m or .fasta. If it's a fasta, make sure it
 # only has one sequence
-if [[ $INFILE == "*.a3m" ]] ; then
+if [[ $INFILE == *.a3m ]] ; then
     :
 elif [[ $INFILE == "*.fasta" ]] ; then
     if (( $(grep -c "^>" $INFILE) > 1 )) ; then 
