@@ -132,7 +132,6 @@ mkdir -p $OUT_DIR
 
 # Run colabfold
 colabfold_batch \
-    --amber \
     --templates \
     --num-recycle $NUM_RECYCLES \
     --use-gpu-relax \
