@@ -5,7 +5,7 @@ nextflow.enable.dsl=2
 // Set up modules
 //============================================================================//
 include { mmseqs2 } from './bin/modules/mmseqs2'
-
+inclode { colabfold } from './bin/modules/colabfold'
 
 
 //============================================================================//
@@ -40,6 +40,8 @@ workflow colabfold_workflow {
 
   // Align via mmseqs2 and generate an a3m MSA file.
   mmseqs2(input_ch)
+
+  colabfold(mmseqs2.out.a3m)
 
 //   // Map using minimap
 //   if (params.aligner == "Minimap2")
