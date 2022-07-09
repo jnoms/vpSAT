@@ -5,7 +5,7 @@ nextflow.enable.dsl=2
 // Set up modules
 //============================================================================//
 include { mmseqs2 } from './bin/modules/mmseqs2'
-inclode { colabfold } from './bin/modules/colabfold'
+include { colabfold } from './bin/modules/colabfold'
 
 
 //============================================================================//
