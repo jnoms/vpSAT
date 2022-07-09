@@ -22,14 +22,14 @@ process colabfold {
     emit: structure
 
   tuple val(sampleID),
-    file("colabfold_output_dir/*"),
+    file("${sampleID}_colabfold_output_dir/*"),
     emit: colabfold_dir
 
   script:
   """
   $workflow.projectDir/bin/bash/colabfold.sh \
   -i ${in_a3m} \
-  -d colabfold_output_dir \
+  -d ${sampleID}_colabfold_output_dir \
   -o ${sampleID}.pdb \
   -n ${params.COLABFOLD_num_recycles}
   """
