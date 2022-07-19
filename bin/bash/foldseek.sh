@@ -72,7 +72,7 @@ done
 FIELDS=${FIELDS:-"query,target,fident,alnlen,mismatch,gapopen,qstart,qend,tstart,tend,evalue,bits"}
 THREADS=${THREADS:-1}
 EVALUE=${EVALUE:-0.001}
-TEMPDIR=${TEMPDIR:-"${INFILE}_TEMP"}
+TEMPDIR=${TEMPDIR:-"$(basename ${INFILE})_TEMP"}
 HTML_FILE=${HTML_FILE:-""}
 
 #------------------------------------------------------------------------------#
