@@ -144,7 +144,7 @@ foldseek convertalis \
     $DATABASE \
     ${TEMPDIR}/alignment_DB \
     $OUT_FILE \
-    --format_mode 0 \
+    --format-mode 0 \
     --format-output "$FIELDS" \
     --threads $THREADS
 
@@ -156,7 +156,7 @@ if [[ $HTML_FILE != "" ]] ; then
     $DATABASE \
     ${TEMPDIR}/alignment_DB \
     $HTML_FILE \
-    --format_mode 3 \
+    --format-mode 3 \
     --threads $THREADS
 fi
 
