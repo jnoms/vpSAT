@@ -29,27 +29,28 @@ usage() {
         -e --EVALUE {int} [Default: 0.001]
             List matches below this e-value. An e-value of 0.001 indicates that 
             the match has a 0.1% chance of occuring by chance alone.
-        -H --HTML 
-            Boolean switch.
-            If specified, the output file will be an html file. Note that
-            ideally this script would be able to output both an html file and
-            a tabular file... however, due to a foldseek bug, it currently
-            cannot generate an html file from a result database. Thus, must
-            use easy-search.
+        -T --TEMPDIR {path} [INFILE_TEMP/]
+            Path to the temp file directory.
+        -H --HTML_FILE {html} [Default: '']
+            If specified, will also output a html file to this path.
+        -c --CLEAN_UP 
+            Boolean flag.
+            If specified, will delete the TEMPDIR.
         "
 }
 
-#If less than 2 options are input, show usage and exit script.
-if [ $# -le 3 ] ; then
+#If less than 3 options are input, show usage and exit script.
+if [ $# -le 4 ] ; then
         usage
         exit 1
 fi
 
 # Boolean flag defaults
-HTML=false
+CLEAN_UP=false
+
 
 #Setting input
-while getopts i:o:d:f:t:e:H option ; do
+while getopts i:o:d:f:t:e:T:H:c option ; do
         case "${option}"
         in
                 i) INFILE=${OPTARG};;
@@ -58,7 +59,9 @@ while getopts i:o:d:f:t:e:H option ; do
                 f) FIELDS=${OPTARG};;
                 t) THREADS=${OPTARG};;
                 e) EVALUE=${OPTARG};;
-                H) HTML=true;;
+                T) TEMPDIR=${OPTARG};;
+                H) HTML_FILE=${OPTARG};;
+                c) CLEAN_UP=true;;
         esac
 done
 
@@ -69,13 +72,8 @@ done
 FIELDS=${FIELDS:-"query,target,fident,alnlen,mismatch,gapopen,qstart,qend,tstart,tend,evalue,bits"}
 THREADS=${THREADS:-1}
 EVALUE=${EVALUE:-0.001}
-
-# Handle output format
-if $HTML ; then
-    OUTFORMAT=3
-else
-    OUTFORMAT=0
-fi
+TEMPDIR=${TEMPDIR:-"${INFILE}_TEMP"}
+HTML_FILE=${HTML_FILE:-""}
 
 #------------------------------------------------------------------------------#
 # Validate inputs and program availablity
@@ -110,20 +108,62 @@ DATABASE: $DATABASE
 FIELDS: $FIELDS
 THREADS: $THREADS
 EVALUE: $EVALUE
-HTML: $HTML
+TEMPDIR: $TEMPDIR
+HTML_FILE: $HTML_FILE
+CLEAN_UP: $CLEAN_UP
 "
 
 echo "$0: Started at $(date)"
 
-# Make output directory if necessary
+# Make directories if necessary
 mkdir -p $(dirname $OUT_FILE)
+mkdir -p $TEMPDIR
 
-# Run foldseek
-foldseek easy-search \
-    $INFILE \
+# Generate query database
+echo "$0: Making query database"
+foldseek createdb \
+    $QUERY \
+    ${TEMPDIR}/queryDB \
+    --threads $THREADS
+
+# Do the search
+echo "$0: Doing search."
+foldseek search \
+    ${TEMPDIR}/queryDB \
     $DATABASE \
-    $OUT_FILE \
-    foldseek-tmp \
-    --format-mode $OUTFORMAT \
-    --format-output "$FIELDS" \
+    ${TEMPDIR}/alignment_DB \
+    ${TEMPDIR} \
+    -a \
+    --threads $THREADS \
     -e $EVALUE
+
+# Convert to tabular output
+echo "$0: Writing tabular output"
+foldseek convertalis \
+    ${TEMPDIR}/queryDB \
+    $DATABASE \
+    ${TEMPDIR}/alignment_DB \
+    $OUT_FILE \
+    --format_mode 0 \
+    --format-output "$FIELDS" \
+    --threads $THREADS
+
+# If specified, also write html file
+if [[ $HTML_FILE != "" ]] ; then
+    echo "$0: Writing HTML output."
+    foldseek convertalis \
+    ${TEMPDIR}/queryDB \
+    $DATABASE \
+    ${TEMPDIR}/alignment_DB \
+    $HTML_FILE \
+    --format_mode 3 \
+    --threads $THREADS
+fi
+
+# Clean up if specified
+if $CLEAN_UP ; then
+    echo "$0: Cleaning up."
+    rm -r ${TEMPDIR}
+fi
+
+echo "$0: Finished at $(date)"
