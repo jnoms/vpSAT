@@ -22,8 +22,8 @@ def get_args():
 
             For example, if a sequence is 2300AA long but you desire sequences
             of 1000 max, this script can either generate the following:
-            1) 1-1000, 1001-2000, 2001-2300. (if -o is NOT specified)
-            2) 1-1000, 1001-1500, 1501-2300, 2001-2300 (if -o is specified)
+            1) 1-1000, 1001-2000, 2001-2300. (if -v is NOT specified)
+            2) 1-1000, 501-1500, 1001-2000, 1501-2300, 2001-2300 (if -v is specified)
 
             The output fasta will be labeled with a prefix
             PARTN_, where N is the chunk number.
