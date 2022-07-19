@@ -71,6 +71,6 @@ workflow {
 
     if ( params.workflow == "colabfold" )
       colabfold_workflow(input_ch)
-    else if ( params.in_fastq_type == "foldseek" )
+    else if ( params.workflow == "foldseek" )
       foldseek_workflow(input_ch)
 }
