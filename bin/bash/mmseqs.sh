@@ -10,7 +10,7 @@ usage() {
         many sequences) using mmseqs search. The output is in a3m format and is
         compatible with subsequent structure generation using colabfold.
 
-        Notably, this process uses the search parameters suggested by the 
+        Notably, this process uses the search parameters suggested by the
         colabfold authors:
         --num-iterations 3 --db-load-mode 2 -a -s 8 -e 0.1 --max-seqs 10000
 
@@ -21,7 +21,7 @@ usage() {
             Subject fasta, containing multiple fastas. OR, can be a previously-
             made mmseqs2 database (set by -d switch). Fasta can be gzipped.
         -o --OUTFILE {a3m}
-            Path to the output a3m file. Necessary output directories will be 
+            Path to the output a3m file. Necessary output directories will be
             created. Many temporary files and database files will be written to
             the same directory unless -c switch is specified.
         -n --NAME {string}
@@ -35,7 +35,7 @@ usage() {
         -c --CLEAN_UP
             Boolean switch.
             If specified, will delete all intermediate/unncessary files from
-            the result directory, leaving just the a3m. 
+            the result directory, leaving just the a3m.
         "
 }
 
@@ -73,10 +73,10 @@ SEARCH_PARAM="--num-iterations 3 --db-load-mode 2 -a -s 8 -e 0.1 --max-seqs 1000
 # Validate inputs and program availablity
 #------------------------------------------------------------------------------#
 # Make sure query has only one sequence
-if (( $(grep -c "^>" $QUERY) > 1 )) ; then 
+if (( $(grep -c "^>" $QUERY) > 1 )) ; then
     echo "Query file must contain only one sequence."
-    echo "(grep -c "^>" $QUERY) sequences are detected."
-    exit 1 
+    echo "$(grep -c "^>" $QUERY) sequences are detected."
+    exit 1
 fi
 
 # Make sure all input files exist
@@ -149,7 +149,7 @@ mmseqs result2msa \
 
 # Cleanup if indicated
 if $CLEAN_UP ; then
-    echo "$0: Cleaning up." 
+    echo "$0: Cleaning up."
     rm ${OUTFILE}.*
     rm  ${OUT_DIR}/${NAME}_query_database*
     rm ${OUT_DIR}/${NAME}_result_database*
