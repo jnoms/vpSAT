@@ -21,15 +21,15 @@ usage() {
         Optional params:
         -f --FIELDS {comma-delimited string}
             [Default: 'query,target,fident,alnlen,mismatch,gapopen,qstart,qend,tstart,tend,evalue,bits']
-            The output fields present in the tabular output file. taxid is not
-            present at default and is useful - just make sure that the database
+            The output fields present in the tabular output file. 'taxid' is not
+            present at default but is useful - just make sure that the database
             searched against has taxonomy information. 
         -t --THREADS {int} [Default: 1]
             Number of threads to use for structural alignment.
         -e --EVALUE {int} [Default: 0.001]
             List matches below this e-value. An e-value of 0.001 indicates that 
             the match has a 0.1% chance of occuring by chance alone.
-        -T --TEMPDIR {path} [INFILE_TEMP/]
+        -T --TEMPDIR {path} [\$(basename \${INFILE})_TEMP/]
             Path to the temp file directory.
         -H --HTML_FILE {html} [Default: '']
             If specified, will also output a html file to this path.
