@@ -7,6 +7,12 @@ nextflow.enable.dsl=2
 include { mmseqs2 } from './bin/modules/mmseqs2'
 include { colabfold } from './bin/modules/colabfold'
 
+//============================================================================//
+// Validate inputs
+//============================================================================//
+if( (params.workflow != "colabfold") && (params.workflow != "foldseek")) {
+  error "params.workflow must be set to 'colabfold' or 'foldseek'."
+}
 
 //============================================================================//
 // Defining functions
@@ -41,44 +47,18 @@ workflow colabfold_workflow {
   // Align via mmseqs2 and generate an a3m MSA file.
   mmseqs2(input_ch)
 
+  // Run Colabfold
   colabfold(mmseqs2.out.a3m)
 
-//   // Map using minimap
-//   if (params.aligner == "Minimap2")
-//     aligned = Minimap2(input_ch)
-//   else if (params.aligner == "STAR")
-//     error "For Nanopore reads, MUST use Minimap2 aligner."
+}
 
-//   // Slide the bed
-//   slide_bed(aligned.bed)
+workflow foldseek_workflow {
+  take: input_ch
+  main:
 
-//   // Generate spans
-//   bed_to_span_NANOPORE(slide_bed.out.slid_bed)
+  // Run foldseek of each query against the input database
+  foldseek(input_ch)
 
-//   // Calculate coverage
-//   bam_coverage(aligned.bam)
-
-//   // ------------------------------------------------------------ //
-//   // ORF ANALYSIS
-//   // ------------------------------------------------------------ //
-
-//   // Predict ORFs with prodigal
-//   prodigal(aligned.fasta)
-
-//   // Extract ORFs
-//   aligned.fasta
-//     .join(prodigal.out.prodigal_out) |\
-//     prodigal_to_orfs_direct
-
-//   // Align with diamond
-//   prodigal_to_orfs_direct.out.pr_orfs |\
-//     diamond
-
-//   // Generate ORF report
-//   diamond.out.diamond_out
-//     .join(slide_bed.out.slid_bed)
-//     .join(bed_to_span_NANOPORE.out.spans) |\
-//     characterize_ORFs
 }
 
 //============================================================================//
@@ -87,7 +67,10 @@ workflow colabfold_workflow {
 workflow {
 
   main:
-    input_ch = sampleID_set_from_infile(params.in_fasta)
+    input_ch = sampleID_set_from_infile(params.in_files)
 
-    colabfold_workflow(input_ch)
+    if ( params.workflow == "colabfold" )
+      colabfold_workflow(input_ch)
+    else if ( params.in_fastq_type == "foldseek" )
+      foldseek_workflow(input_ch)
 }
