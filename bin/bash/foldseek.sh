@@ -122,7 +122,7 @@ mkdir -p $TEMPDIR
 # Generate query database
 echo "$0: Making query database"
 foldseek createdb \
-    $QUERY \
+    $INFILE \
     ${TEMPDIR}/queryDB \
     --threads $THREADS
 
