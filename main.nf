@@ -6,6 +6,7 @@ nextflow.enable.dsl=2
 //============================================================================//
 include { mmseqs2 } from './bin/modules/mmseqs2'
 include { colabfold } from './bin/modules/colabfold'
+include { foldseek } from './bin/modules/foldseek'
 
 //============================================================================//
 // Validate inputs
