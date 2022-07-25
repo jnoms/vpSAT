@@ -11,6 +11,8 @@ import pathlib
 import os
 import argparse
 import re
+import itertools
+
 
 # ---------------------------------------------------------------------------- #
 # Input arguments
@@ -120,6 +122,11 @@ def get_args():
     return args
 
 # ---------------------------------------------------------------------------- #
+# Constants
+# ---------------------------------------------------------------------------- #
+minimum_uncovered_polypeptide_length = 50
+
+# ---------------------------------------------------------------------------- #
 # ETE3 functions and constants
 # ---------------------------------------------------------------------------- #
 prefix_dictionary = {
@@ -213,6 +220,94 @@ def get_cannonical_lineage(taxonID, prefix_dictionary):
 # ---------------------------------------------------------------------------- #
 # Script Functions
 # ---------------------------------------------------------------------------- #
+def read_gb_file(infile):
+    """
+    Returns a list of entries. Each entry is a biopython SeqFeature.
+    """
+    gb_records = []
+    for gb_record in SeqIO.parse(open(infile, "r"), "genbank"):
+        gb_records.append(gb_record)
+    return gb_records
+
+
+def split_polyproteins(gb_records, minimum_uncovered_polypeptide_length=50):
+    """
+    Returns a list of gb_records where polyprotiens have been split up. 
+    Polyproteins are defined as proteins where there is a mat_peptide field.
+    In the event that the mat_peptide fields do not entirely cover the record
+    sequence, the remaining uncovered sequence is also output as a separate
+    record if it is greater than minimum_uncovered_polypeptide_length.
+    """
+    def set_to_ranges(i):
+        """
+        Minor function to convert a set of positions to a series of ranges.
+        For example, a set {0, 1, 2, 4, 5, 10, 12, 13, 14} would yield
+        [(0, 2), (4, 5), (10, 10), (12, 14)].
+        
+        Note, must use list() function on the result to convert it to a list -
+        it is output as a generator.
+        """
+        for a, b in itertools.groupby(enumerate(i), lambda pair: pair[1] - pair[0]):
+            b = list(b)
+            yield b[0][1], b[-1][1]
+    
+    result_gb_records = []
+    for gb_record in gb_records:
+            name = gb_record.name
+            seq = gb_record.seq
+            description = gb_record.description
+            organism = gb_record.annotations["organism"]
+
+            # Extract features
+            features = gb_record.features
+
+            # Check for mature peptide features
+            mat_peptide_features = [feature for feature in features if feature.type=="mat_peptide"]
+
+            # If there are no mature peptides, just add the gb_record to the output
+            if len(mat_peptide_features) == 0:
+                result_gb_records.append(gb_record)
+                continue
+
+            # Parse the mature peptides and write them out.
+            covered_locations = set()
+            for mat_peptide_feature in mat_peptide_features:
+                mat_peptide_description = mat_peptide_feature.qualifiers.get("product")[0]
+                mat_peptide_name = mat_peptide_feature.qualifiers.get("protein_id", [name + "_" + mat_peptide_description])[0]
+                mat_peptide_seq = mat_peptide_feature.extract(seq)
+                
+                # remove the version (e.g. .1) from the name
+                mat_peptide_name = mat_peptide_name.split(".")[0]
+
+                mat_peptide_seq_record = SeqRecord(seq = mat_peptide_seq,
+                                                name = mat_peptide_name,
+                                                description = mat_peptide_description)
+                mat_peptide_seq_record.annotations["organism"] = organism
+                result_gb_records.append(mat_peptide_seq_record)
+
+                # Also keep track of the locations that have been convered
+                location = mat_peptide_feature.location
+                covered_locations.update(set(range(location.start, location.end)))
+
+            # Determine if the entire polyprotein is covered
+            not_covered = set(range(len(seq))) - covered_locations
+
+            # If not all of the polyprotien was covered, write the remaining sequence
+            # as a new entry
+            if not_covered != set():
+                uncovered_ranges = list(set_to_ranges(not_covered))
+                for uncovered_range in uncovered_ranges:
+                    start = uncovered_range[0]
+                    end = uncovered_range[1]
+                    if end - start < minimum_uncovered_polypeptide_length: continue
+                    record = SeqRecord(seq = seq[start:end],
+                                        name = "{}_{}-{}".format(name, start, end),
+                                        description = "uncovered_polypeptide_{}".format(description))
+                    record.annotations["organism"] = organism
+                    result_gb_records.append(record)
+
+    return result_gb_records
+
 def add_family(gb_records):
     gb_records_w_family = gb_records.copy()
 
@@ -294,182 +389,128 @@ def clean_up_gb_records(gb_records):
     
     return cleaned_gb_records
 
+def remove_duplicates(gb_records):
+    """
+    If there are multiple gb_records with the same name, will discard
+    one of them. There will be multiple in the situation where a 
+    mat_peptide from a polyprotein is also present as a separate entry.
+    """
+    seen = set()
+    output = []
+    for gb_record in gb_records:
+        name = gb_record.name
+
+
+        if name in seen:
+            continue
+
+        # Otherwise, save this to the new output
+        seen.add(name)
+        output.append(gb_record)
+
+    return output
+
+def generate_header(gb_record):
+    description = gb_record.description
+    name = gb_record.name
+    seq = gb_record.seq
+    organism = gb_record.annotations["organism"]
+    taxonID = gb_record.taxonID
+    
+    # Define and validate header
+    header = "{}__{}__{}__{}".format(description, name, organism, taxonID)
+    if header.count("__") != 3:
+        msg = "The description, name, organism, or taxonID in the header "
+        msg += "Contains a double underscore (__)! Need to remove it because "
+        msg += "__ is currently used as a delimiter."
+        msg += " The problematic header is {}".format(header)
+        raise ValueError(msg)
+        
+    return header
+
+def write_single_output(gb_records, path):
+    """
+    Writes fastas to a single output file.
+    """
+    out_dir = os.path.dirname(path)
+    pathlib.Path(out_dir).mkdir(parents=True, exist_ok=True)
+    
+    with open(path, "w") as outfile:
+        for gb_record in gb_records:
+            header = generate_header(gb_record)
+            seq = gb_record.seq
+            outfile.write(">{}\n{}\n".format(header, seq))
+        
+def write_multi_output(gb_records, base_path):
+    """
+    Writes a separate file for each entry
+    """
+    if not base_path.endswith("/"):
+        base_path += "/"
+        
+    # Make output dir if needed
+    pathlib.Path(base_path).mkdir(parents=True, exist_ok=True)
+    
+    for gb_record in gb_records:
+        header = generate_header(gb_record)
+        seq = gb_record.seq
+        with open(base_path + header + ".fasta", "w") as outfile:
+            outfile.write(">{}\n{}\n".format(header, seq))
+   
+def write_family_output(gb_records, base_path):
+    """
+    Writes a single output file per family.
+    """
+    if not base_path.endswith("/"):
+        base_path += "/"
+    
+    # Make output dir if needed
+    pathlib.Path(base_path).mkdir(parents=True, exist_ok=True)
+    
+    file_objects = dict()
+    
+    for gb_record in gb_records:
+        header = generate_header(gb_record)
+        seq = gb_record.seq
+        family = gb_record.family
+        
+        output_file_path = base_path + family + ".fasta"
+        if not family in file_objects:
+            file_objects[family] = open(output_file_path, "w")
+            
+        outfile = file_objects[family]
+        outfile.write(">{}\n{}\n".format(header, seq))
+        
+    # Close the file objects
+    for family, file_object in file_objects.items():
+        file_object.close()
+
+
 # Main
 def main():
     args = get_args()
     
-    # Read in genbank file
-    # ------------------------------------------------------------------------ #
-    gb_records = []
-    for gb_record in SeqIO.parse(open(args.input_genpept_file, "r"), "genbank"):
-        gb_records.append(gb_record)
+    gb_records = read_gb_file(args.input_genpept_file)
 
-    # Identifiy polyproteins
-    # ------------------------------------------------------------------------ #
-    gb_records_not_polyproteins = []
-    gb_records_polyproteins = []
-    for gb_record in gb_records:
-        name = gb_record.name
-        seq = gb_record.seq
-        description = gb_record.description
-        organism = gb_record.annotations["organism"]
-        
-        # Extract features
-        features = gb_record.features
-        
-        # Check for mature peptide features
-        mat_peptide_features = [feature for feature in features if feature.type=="mat_peptide"]
-        
-        # Determien if there are mature peptide features with or without protein_ids
-        mat_peptide_features_with_pr_id = []
-        mat_peptide_features_without_pr_id = []
-        if len(mat_peptide_features) > 0:
-            
-            # Assumption - mat_peptide_features will either all have a protein_id 
-            # or all will not have a protein_id. Need to keep track and raise an
-            # error if there is a mix.
-            detected_a_protein_id = False
-            detected_no_protein_id = False
-            
-            for mat_peptide_feature in mat_peptide_features:
-                protein_id = mat_peptide_feature.qualifiers.get("protein_id", "")
-                if protein_id == "":
-                    detected_no_protein_id = True
-                    mat_peptide_features_without_pr_id.append(mat_peptide_feature)
-                else:
-                    detected_a_protein_id = True
-                    mat_peptide_features_with_pr_id.append(mat_peptide_feature)
-                    
-            # Based on the assumption, raise an error if there are both features with
-            # and without protein_id's
-            if detected_a_protein_id == True and detected_no_protein_id == True:
-                msg = "Apparently some mat_peptides in {} have protein_id's and".format(name)
-                msg += " some don't. Deal with this."
-                raise ValueError(msg)
-                
-        # If there are no mat_peptides with a pr ID, and no mat_peptides without a pr
-        # id (and thus have to been processed separately), save it out
-        if len(mat_peptide_features_with_pr_id) == 0 and len(mat_peptide_features_without_pr_id) == 0:
-            gb_records_not_polyproteins.append(gb_record)
-        
-        # Then write out the gb_records that have mat_peptides without protein id's, and
-        # which therefore must be processed separately
-        elif len(mat_peptide_features_without_pr_id) > 0:
-            gb_records_polyproteins.append(gb_record)
-            
-        # This continue isn't programatically required. But, the gb_records that make it here are
-        # polyproteins whose constitutent mat_peptides all have protein_id's and are thus separately
-        # represented in the database. These records are excluded from further analysis
-        else:
-            continue
-    
-    # Split polyproteins into substituent mature peptides
-    # ------------------------------------------------------------------------ #
-    gb_records_polyprotein_peptides = []
-    for gb_record in gb_records_polyproteins:
-        
-        name = gb_record.name
-        seq = gb_record.seq
-        description = gb_record.description
-        organism = gb_record.annotations["organism"]
-        
-        features = gb_record.features
-        mat_peptide_features = [feature for feature in features if feature.type=="mat_peptide"]
-        
-        for mat_peptide_feature in mat_peptide_features:
-            mat_peptide_description = mat_peptide_feature.qualifiers.get("product")[0]
-            mat_peptide_name = name + "_" + mat_peptide_description
-            mat_peptide_seq = mat_peptide_feature.extract(seq)
-        
-            mat_peptide_seq_record = SeqRecord(seq = mat_peptide_seq,
-                                            name = mat_peptide_name,
-                                            description = mat_peptide_description)
-            mat_peptide_seq_record.annotations["organism"] = organism
-            gb_records_polyprotein_peptides.append(mat_peptide_seq_record)
-
-    # Consolidate all gb_records
-    all_gb_records = gb_records_polyprotein_peptides + gb_records_not_polyproteins
+    # split polyproteins into separate records
+    gb_records = split_polyproteins(gb_records, minimum_uncovered_polypeptide_length)
 
     # Add family information
-    all_gb_records = add_family(all_gb_records)
-    
+    gb_records = add_family(gb_records)
+
     # Make sure that the descriptions and name of each gb entry doesn't have banned characters
-    all_gb_records = clean_up_gb_records(all_gb_records)
+    gb_records = clean_up_gb_records(gb_records)
 
-    # Write fastas to output
-    # ------------------------------------------------------------------------ #
+    # Remove duplicates
+    gb_records = remove_duplicates(gb_records)
+
+    # Write output
     if args.single_output_file_path != "":
-
-        out_dir = os.path.dirname(args.single_output_file_path)
-        pathlib.Path(out_dir).mkdir(parents=True, exist_ok=True)
-
-        with open(args.single_output_file_path, "w") as outfile:
-            for gb_record in all_gb_records:
-                description = gb_record.description
-                name = gb_record.name
-                seq = gb_record.seq
-                organism = gb_record.annotations["organism"]
-                taxonID = gb_record.taxonID
-
-                header = ">{}__{}__{}__{}".format(description, name, organism, taxonID)
-
-                # Make sure the delimiter, __, only is present three times
-                if header.count("__") != 3:
-                    msg = "The description, name, organism, or taxonID in the header "
-                    msg += "Contains a double underscore (__)! Need to remove it because "
-                    msg += "__ is currently used as a delimiter."
-                    msg += " The problematic header is {}".format(header)
-                    raise ValueError(msg)
-
-                outfile.write("{}\n{}\n".format(header, seq))
-
-    if args.multiple_file_output_dir_base != "/":
-        pathlib.Path(args.multiple_file_output_dir_base).mkdir(parents=True, exist_ok=True)
-
-        for gb_record in all_gb_records:
-            description = gb_record.description
-            name = gb_record.name
-            seq = gb_record.seq
-            organism = gb_record.annotations["organism"]
-            taxonID = gb_record.taxonID
-
-            header = ">{}__{}__{}__{}".format(description, name, organism, taxonID)
-
-            # Make sure the delimiter, __, only is present three times
-            if header.count("__") != 3:
-                msg = "The description, name, organism, or taxonID in the header "
-                msg += "Contains a double underscore (__)! Need to remove it because "
-                msg += "__ is currently used as a delimiter"
-                raise ValueError(msg)
-            
-            # Write to separate file
-            separated_file_path = args.multiple_file_output_dir_base + "{}__{}__{}__{}.fasta".format(description, name, organism, taxonID)
-            with open(separated_file_path, "w") as separate_outfile:
-                separate_outfile.write("{}\n{}\n".format(header, seq))
-
-    if args.multiple_files_by_family_output_dir_base != "/":
-        pathlib.Path(args.multiple_files_by_family_output_dir_base).mkdir(parents=True, exist_ok=True)
-
-        for gb_record in all_gb_records:
-            description = gb_record.description
-            name = gb_record.name
-            seq = gb_record.seq
-            organism = gb_record.annotations["organism"]
-            taxonID = gb_record.taxonID
-
-            header = ">{}__{}__{}__{}".format(description, name, organism, taxonID)
-
-            # Make sure the delimiter, __, only is present three times
-            if header.count("__") != 3:
-                msg = "The description, name, organism, or taxonID in the header "
-                msg += "Contains a double underscore (__)! Need to remove it because "
-                msg += "__ is currently used as a delimiter"
-                raise ValueError(msg)
-            
-            # Write to separate family files
-            family_file_path = args.multiple_files_by_family_output_dir_base + "{}.fasta".format(gb_record.family)
-            with open(family_file_path, "a") as family_outfile:
-                family_outfile.write("{}\n{}\n".format(header, seq))
+        write_single_output(gb_records, args.single_output_file_path)
+    if args.multiple_file_output_dir_base != "":
+        write_multi_output(gb_records, args.multiple_file_output_dir_base)
+    if args.multiple_files_by_family_output_dir_base != "":
+        write_family_output(gb_records, args.multiple_files_by_family_output_dir_base)
 
 
 if __name__ == "__main__":
