@@ -490,21 +490,27 @@ def write_family_output(gb_records, base_path):
 def main():
     args = get_args()
     
+    print("Parsing input file.")
     gb_records = read_gb_file(args.input_genpept_file)
 
     # split polyproteins into separate records
+    print("Splitting polyproteins")
     gb_records = split_polyproteins(gb_records, minimum_uncovered_polypeptide_length)
 
     # Add family information
+    print("Adding family information")
     gb_records = add_family(gb_records)
 
     # Make sure that the descriptions and name of each gb entry doesn't have banned characters
+    print("Removing banned characters")
     gb_records = clean_up_gb_records(gb_records)
 
     # Remove duplicates
+    print("Removing duplicates.")
     gb_records = remove_duplicates(gb_records)
 
     # Write output
+    print("Writing output.")
     if args.single_output_file_path != "":
         write_single_output(gb_records, args.single_output_file_path)
     if args.multiple_file_output_dir_base != "":
