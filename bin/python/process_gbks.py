@@ -113,12 +113,6 @@ def get_args():
         msg += "multiple_files_by_family_output_dir_base must be input!"
         raise ValueError(msg)
 
-    # Deal with formatting the dirnames if not followed by /
-    if not args.multiple_file_output_dir_base.endswith("/"):
-        args.multiple_file_output_dir_base += "/"
-    if not args.multiple_files_by_family_output_dir_base.endswith("/"):
-        args.multiple_files_by_family_output_dir_base += "/"
-
     return args
 
 # ---------------------------------------------------------------------------- #
@@ -463,7 +457,7 @@ def write_family_output(gb_records, base_path):
     """
     if not base_path.endswith("/"):
         base_path += "/"
-    
+   
     # Make output dir if needed
     pathlib.Path(base_path).mkdir(parents=True, exist_ok=True)
     
@@ -514,6 +508,7 @@ def main():
     if args.single_output_file_path != "":
         write_single_output(gb_records, args.single_output_file_path)
     if args.multiple_file_output_dir_base != "":
+        print(args.multiple_file_output_dir_base)
         write_multi_output(gb_records, args.multiple_file_output_dir_base)
     if args.multiple_files_by_family_output_dir_base != "":
         write_family_output(gb_records, args.multiple_files_by_family_output_dir_base)
