@@ -371,9 +371,9 @@ def clean_up_gb_records(gb_records):
         organism = re.sub('\s+', '_', organism)
 
         # Make sure each description, name, and organism only has one _ in a row
-        description = description.replace("__", "_").replace("___", "_")
-        name = name.replace("__", "_").replace("___", "_")
-        organism = organism.replace("__", "_").replace("___", "_")
+        description = description.replace("__", "_").replace("__", "_")
+        name = name.replace("__", "_").replace("__", "_")
+        organism = organism.replace("__", "_").replace("__", "_")
         
         # Save into the gb objects
         gb_record = gb_record
