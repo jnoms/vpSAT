@@ -5,8 +5,6 @@ import pathlib
 import os
 import argparse
 import gzip
-import sys
-from turtle import setundobuffer
 from Bio import SeqIO
 
 # ---------------------------------------------------------------------------- #
@@ -45,7 +43,9 @@ def get_args():
         type=str,
         required=True,
         help='''
-        Path to the output fasta.
+        Path to the output fasta. If -n is specified, will put every fasta entry
+        into a separate file and the entry in the -o switch will specify the
+        base path - should be a directory in this case.
         '''
     )
     parser.add_argument(
@@ -81,6 +81,21 @@ def get_args():
         If specified, each chunk will overlap by max_seq_length/2. If not
         specified, chunks will be just
         1:max_seq_length, max_seq_length+1:max_seq_length*2, etc
+        '''
+    )
+
+    parser.add_argument(
+        '-n',
+        '--individual',
+        type=str2bool,
+        required=False,
+        default=False,
+        nargs="?",
+        const=True,
+        help='''
+        If specified, each fasta entry will be passed to a separate file 
+        named by its header. Furthermore, it will assume that args.out_fasta is
+        the base path.
         '''
     )
 
@@ -143,13 +158,23 @@ def main():
             new_header = "PART{}_{}".format(str(i), header)
             out_fasta_dict[new_header] = chunk
 
-    # Write output
-    out_dir = os.path.dirname(args.out_fasta)
-    pathlib.Path(out_dir).mkdir(parents=True, exist_ok=True)
-    with open(args.out_fasta, "w") as outfile:
+    # Write output to a single file
+    if not args.individual:
+        out_dir = os.path.dirname(args.out_fasta)
+        pathlib.Path(out_dir).mkdir(parents=True, exist_ok=True)
+        with open(args.out_fasta, "w") as outfile:
+            for header, seq in out_fasta_dict.items():
+                out = ">{}\n{}\n".format(header, seq)
+                outfile.write(out)
+    else:
+        if not args.out_fasta.endswith("/"):
+            args.out_fasta += "/"
+        pathlib.Path(args.out_fasta).mkdir(parents=True, exist_ok=True)
         for header, seq in out_fasta_dict.items():
-            out = ">{}\n{}\n".format(header, seq)
-            outfile.write(out)
+            outfile = args.out_fasta + header + ".fasta"
+            with open(outfile, "w") as outfile:
+                out = ">{}\n{}\n".format(header, seq)
+                outfile.write(out)
 
 
 if __name__ == "__main__":
