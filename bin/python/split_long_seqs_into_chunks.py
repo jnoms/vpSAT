@@ -59,6 +59,17 @@ def get_args():
     )
 
     # Optional arguments
+    parser.add_argument(
+        '-s',
+        '--minimum_sequence_output_size',
+        type=int,
+        required=False,
+        default=50,
+        help='''
+        Will not output any sequences below this size. This is because colabfold
+        fails when sequences are very small. [50]
+        '''
+    )
     def str2bool(v):
         if isinstance(v, bool):
             return v
@@ -112,6 +123,11 @@ def get_args():
 
 
 # ---------------------------------------------------------------------------- #
+# Constants
+# ---------------------------------------------------------------------------- #
+minimum_sequence_output_size = 50
+
+# ---------------------------------------------------------------------------- #
 # General functions
 # ---------------------------------------------------------------------------- #
 def read_fasta_to_memory(input_fasta):
@@ -145,6 +161,10 @@ def main():
     for header, seq in fasta_dict.items():
 
         if len(seq) <= args.max_seq_length:
+            # Ditch sequences below a minimum size bc colabfold fails with
+            # small inputs.
+            if len(seq) < args.minimum_sequence_output_size:
+                continue
             out_fasta_dict[header] = seq
             continue
 
@@ -155,6 +175,11 @@ def main():
             chunks = [seq[i:i+args.max_seq_length] for i in range(0, len(seq), args.max_seq_length-overlap)]
 
         for i, chunk in enumerate(chunks):
+            # Ditch chunks that fall below a minimum cutoff size - colabfold
+            # fails with very small inputs.
+            if len(chunk) < args.minimum_sequence_output_size:
+                continue
+
             new_header = "PART{}_{}".format(str(i), header)
             out_fasta_dict[new_header] = chunk
 
