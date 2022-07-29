@@ -370,7 +370,8 @@ def clean_up_gb_records(gb_records):
         name = re.sub('\s+', '_', name)
         organism = re.sub('\s+', '_', organism)
 
-        # Make sure none of them start with a dash
+        # Make sure none of them start with a dash. Otherwise, mmseqs2 will
+        # interpret it as a switch.
         if description.startswith("-"):
             description = description[1:]
         if name.startswith("-"):
