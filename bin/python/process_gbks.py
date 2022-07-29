@@ -370,6 +370,14 @@ def clean_up_gb_records(gb_records):
         name = re.sub('\s+', '_', name)
         organism = re.sub('\s+', '_', organism)
 
+        # Make sure none of them start with a dash
+        if description.startswith("-"):
+            description = description[1:]
+        if name.startswith("-"):
+            name = name[1:]
+        if organism.startswith("-"):
+            organism = organism[1:]
+
         # Make sure each description, name, and organism only has one _ in a row
         description = description.replace("__", "_").replace("__", "_")
         name = name.replace("__", "_").replace("__", "_")
