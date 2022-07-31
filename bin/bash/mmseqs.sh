@@ -29,6 +29,8 @@ usage() {
             conflicts.
 
         Optional params:
+        -t --THREADS [5]
+            Number of threads.
         -d --IS_DATABASE
             Boolean switch.
             If specified, will assume SUBJECT file is an mmseqs2 database.
@@ -50,13 +52,14 @@ IS_DATABASE=false
 CLEAN_UP=false
 
 #Setting input
-while getopts q:s:o:n:dc option ; do
+while getopts q:s:o:n:t:dc option ; do
         case "${option}"
         in
                 q) QUERY=${OPTARG};;
                 s) SUBJECT=${OPTARG};;
                 o) OUTFILE=${OPTARG};;
                 n) NAME=${OPTARG};;
+                t) THREADS=${OPTARG};;
                 d) IS_DATABASE=true;;
                 c) CLEAN_UP=true;;
         esac
@@ -68,6 +71,8 @@ done
 # Constants
 SEARCH_PARAM="--num-iterations 3 --db-load-mode 2 -a -s 8 -e 0.1 --max-seqs 10000"
 
+# Defaults
+THREADS=${THREADS:-5}
 
 #------------------------------------------------------------------------------#
 # Validate inputs and program availablity
@@ -104,6 +109,7 @@ QUERY: $QUERY
 SUBJECT: $SUBJECT
 OUTFILE: $OUTFILE
 NAME: $NAME
+THREADS: $THREADS
 IS_DATABASE: $IS_DATABASE
 CLEAN_UP: $CLEAN_UP
 "
@@ -136,7 +142,8 @@ mmseqs search \
     $SUBJECT_DB \
     ${OUT_DIR}/${NAME}_result_database \
     ${OUT_DIR}/tmp \
-    $SEARCH_PARAM
+    $SEARCH_PARAM \
+    --threads $THREADS
 
 # Convert to a3m
 echo "$0: Converting to a3m."
@@ -145,7 +152,8 @@ mmseqs result2msa \
     $SUBJECT_DB \
     ${OUT_DIR}/${NAME}_result_database \
     $OUTFILE \
-    --msa-format-mode 5
+    --msa-format-mode 5 \
+    --threads $THREADS
 
 # Cleanup if indicated
 if $CLEAN_UP ; then

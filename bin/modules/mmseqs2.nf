@@ -26,6 +26,7 @@ process mmseqs2 {
   -q ${in_fasta} \
   -s ${params.reference_fasta} \
   -o ${sampleID}.a3m \
-  -n ${sampleID} 
+  -n ${sampleID} \
+  -t ${task.cpus}
   """
 }
