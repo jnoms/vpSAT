@@ -13,8 +13,7 @@ usage() {
             This can specify either a directory containing fastas or a single fasta.
         -o --OUT_FILE {path}
             Path to the output file. This will be a tabular file (.m8 is a
-            recommended file suffix for the tabular file), unless the -H switch
-            is specified, in which case it will be an HTML file. 
+            recommended file suffix for the tabular file).
 
         Either-or params:
         -d --DATABASE {database}
