@@ -174,7 +174,7 @@ if [[ $CLUSTER_FILE != "" ]] ; then
     mkdir -p $(dirname $CLUSTER_FILE)
     foldseek clust \
         ${TEMPDIR}/queryDB \
-        $DATABASE \
+        ${TEMPDIR}/alignment_DB \
         ${TEMPDIR}/clusterDB
 
     foldseek createtsv \
