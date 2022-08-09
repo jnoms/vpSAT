@@ -10,7 +10,7 @@ usage() {
 
         Required params:
         -i --INFILE {pdb}
-            Structure that serves as the query.
+            This can specify either a directory containing fastas or a single fasta.
         -o --OUT_FILE {path}
             Path to the output file. This will be a tabular file (.m8 is a
             recommended file suffix for the tabular file), unless the -H switch
@@ -26,7 +26,7 @@ usage() {
 
         Optional params:
         -f --FIELDS {comma-delimited string}
-            [Default: 'query,target,fident,alnlen,mismatch,gapopen,qstart,qend,tstart,tend,evalue,bits']
+            [Default: 'query,target,fident,alnlen,mismatch,gapopen,qstart,qend,tstart,tend,evalue,bits,alntmscore']
             The output fields present in the tabular output file. 'taxid' is not
             present at default but is useful - just make sure that the database
             searched against has taxonomy information. 
@@ -79,7 +79,7 @@ done
 # Defaults
 DATABASE=${DATABASE:-""}
 CLUSTER_FILE=${CLUSTER_FILE:-""}
-FIELDS=${FIELDS:-"query,target,fident,alnlen,mismatch,gapopen,qstart,qend,tstart,tend,evalue,bits"}
+FIELDS=${FIELDS:-"query,target,fident,alnlen,mismatch,gapopen,qstart,qend,tstart,tend,evalue,bits,alntmscore"}
 THREADS=${THREADS:-1}
 EVALUE=${EVALUE:-0.001}
 TEMPDIR=${TEMPDIR:-"$(basename ${INFILE})_TEMP"}
@@ -89,12 +89,7 @@ HTML_FILE=${HTML_FILE:-""}
 # Validate inputs and program availablity
 #------------------------------------------------------------------------------#
 # Make sure all input files exist
-if [ ! -f $INFILE ] ; then
-    echo "Input file, $INFILE, not detected."
-    exit 1
-fi
-
-if [ ! -f $DATABASE ] ; then
+if [ -z $DATABASE ] && [ ! -f $DATABASE ] ; then
     echo "Database, $DATABASE, not detected."
     exit 1
 fi
@@ -179,12 +174,12 @@ if [[ $CLUSTER_FILE != "" ]] ; then
     mkdir -p $(dirname $CLUSTER_FILE)
     foldseek clust \
         ${TEMPDIR}/queryDB \
-        $DATABASE
+        $DATABASE \
         ${TEMPDIR}/clusterDB
 
     foldseek createtsv \
         ${TEMPDIR}/queryDB \
-        $DATABASE
+        $DATABASE \
         ${TEMPDIR}/clusterDB
         $CLUSTER_FILE
 fi
