@@ -15,8 +15,14 @@ usage() {
             Path to the output file. This will be a tabular file (.m8 is a
             recommended file suffix for the tabular file), unless the -H switch
             is specified, in which case it will be an HTML file. 
+
+        Either-or params:
         -d --DATABASE {database}
             Path to a database generated with foldseek createdb.
+        -C --CLUSTER_FILE {path}
+            If specified, will produce a cluster output file using the foldseek 
+            cluster command. Here, the INFILE will be used as both the query and target
+            databases - thus, the DATABASE flag is not required.
 
         Optional params:
         -f --FIELDS {comma-delimited string}
@@ -33,6 +39,7 @@ usage() {
             Path to the temp file directory.
         -H --HTML_FILE {html} [Default: '']
             If specified, will also output a html file to this path.
+        
         -c --CLEAN_UP 
             Boolean flag.
             If specified, will delete the TEMPDIR.
@@ -50,12 +57,13 @@ CLEAN_UP=false
 
 
 #Setting input
-while getopts i:o:d:f:t:e:T:H:c option ; do
+while getopts i:o:d:C:f:t:e:T:H:c option ; do
         case "${option}"
         in
                 i) INFILE=${OPTARG};;
                 o) OUT_FILE=${OPTARG};;
                 d) DATABASE=${OPTARG};;
+                C) CLUSTER_FILE=${OPTARG};;
                 f) FIELDS=${OPTARG};;
                 t) THREADS=${OPTARG};;
                 e) EVALUE=${OPTARG};;
@@ -69,6 +77,8 @@ done
 # Set defaults and constants
 #------------------------------------------------------------------------------#
 # Defaults
+DATABASE=${DATABASE:-""}
+CLUSTER_FILE=${CLUSTER_FILE:-""}
 FIELDS=${FIELDS:-"query,target,fident,alnlen,mismatch,gapopen,qstart,qend,tstart,tend,evalue,bits"}
 THREADS=${THREADS:-1}
 EVALUE=${EVALUE:-0.001}
@@ -89,6 +99,16 @@ if [ ! -f $DATABASE ] ; then
     exit 1
 fi
 
+if [ -z $DATABASE ] && [ -z $CLUSTER_FILE ] ; then
+    echo "--DATABASE or --CLUSTER_FILE must be set!"
+    exit 1
+elif [ ! -z $DATABASE ] && [ ! -z $CLUSTER_FILE ] ; then
+    echo "Have detected that both --DATABASE and --CLUSTER_FILE are set."
+    echo "Typically should just specify one of those, as if --CLUSTER_FILE is provided "
+    echo "the INFILE will be used as both query and target."
+    exit 1
+fi
+
 # Make sure required programs are available
 if ! command -v foldseek  ; then
     echo "foldseek not detected!"
@@ -105,6 +125,7 @@ $0 inputs:
 INFILE: $INFILE
 OUT_FILE: $OUT_FILE
 DATABASE: $DATABASE
+CLUSTER_FILE: $CLUSTER_FILE
 FIELDS: $FIELDS
 THREADS: $THREADS
 EVALUE: $EVALUE
@@ -125,6 +146,11 @@ foldseek createdb \
     $INFILE \
     ${TEMPDIR}/queryDB \
     --threads $THREADS
+
+# If this is a cluster job, specify DATABASE as the query database.
+if [[ $CLUSTER_FILE != "" ]] ; then 
+    DATABASE=${TEMPDIR}/queryDB
+fi
 
 # Do the search
 echo "$0: Doing search."
@@ -147,6 +173,21 @@ foldseek convertalis \
     --format-mode 0 \
     --format-output "$FIELDS" \
     --threads $THREADS
+
+# If this is a cluster job, generate the cluster output file.
+if [[ $CLUSTER_FILE != "" ]] ; then 
+    mkdir -p $(dirname $CLUSTER_FILE)
+    foldseek clust \
+        ${TEMPDIR}/queryDB \
+        $DATABASE
+        ${TEMPDIR}/clusterDB
+
+    foldseek createtsv \
+        ${TEMPDIR}/queryDB \
+        $DATABASE
+        ${TEMPDIR}/clusterDB
+        $CLUSTER_FILE
+fi
 
 # If specified, also write html file
 if [[ $HTML_FILE != "" ]] ; then
