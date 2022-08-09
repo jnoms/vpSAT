@@ -180,7 +180,7 @@ if [[ $CLUSTER_FILE != "" ]] ; then
     foldseek createtsv \
         ${TEMPDIR}/queryDB \
         $DATABASE \
-        ${TEMPDIR}/clusterDB
+        ${TEMPDIR}/clusterDB \
         $CLUSTER_FILE
 fi
 
