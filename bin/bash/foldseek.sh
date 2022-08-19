@@ -38,6 +38,12 @@ usage() {
             Path to the temp file directory.
         -H --HTML_FILE {html} [Default: '']
             If specified, will also output a html file to this path.
+        -m --FOLDSEEK_CLUSTER_MODE [Default: 1]
+            When doing clustering (e.g. -C --CLUSTER_FILE is specified), this is the 
+            clustering mode that will be used. The default of 1 is pretty stringent
+            and will pretty much ensure that two items that have an alignment will be
+            in the same cluster. Mode 0 will split up networks of alignments into 
+            smaller core clusters.
         
         -c --CLEAN_UP 
             Boolean flag.
@@ -56,7 +62,7 @@ CLEAN_UP=false
 
 
 #Setting input
-while getopts i:o:d:C:f:t:e:T:H:c option ; do
+while getopts i:o:d:C:f:t:e:T:H:m:c option ; do
         case "${option}"
         in
                 i) INFILE=${OPTARG};;
@@ -68,6 +74,7 @@ while getopts i:o:d:C:f:t:e:T:H:c option ; do
                 e) EVALUE=${OPTARG};;
                 T) TEMPDIR=${OPTARG};;
                 H) HTML_FILE=${OPTARG};;
+                m) FOLDSEEK_CLUSTER_MODE=${OPTARG};;
                 c) CLEAN_UP=true;;
         esac
 done
@@ -83,6 +90,7 @@ THREADS=${THREADS:-1}
 EVALUE=${EVALUE:-0.001}
 TEMPDIR=${TEMPDIR:-"$(basename ${INFILE})_TEMP"}
 HTML_FILE=${HTML_FILE:-""}
+FOLDSEEK_CLUSTER_MODE=${FOLDSEEK_CLUSTER_MODE:-1}
 
 #------------------------------------------------------------------------------#
 # Validate inputs and program availablity
@@ -125,6 +133,7 @@ THREADS: $THREADS
 EVALUE: $EVALUE
 TEMPDIR: $TEMPDIR
 HTML_FILE: $HTML_FILE
+FOLDSEEK_CLUSTER_MODE: $FOLDSEEK_CLUSTER_MODE
 CLEAN_UP: $CLEAN_UP
 "
 
@@ -176,7 +185,7 @@ if [[ $CLUSTER_FILE != "" ]] ; then
         ${TEMPDIR}/queryDB \
         ${TEMPDIR}/alignment_DB \
         ${TEMPDIR}/clusterDB \
-        --cluster-mode 1
+        --cluster-mode $FOLDSEEK_CLUSTER_MODE
 
     echo "$0: Writing cluster tsv file."
     foldseek createtsv \
