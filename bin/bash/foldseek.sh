@@ -170,12 +170,15 @@ foldseek convertalis \
 
 # If this is a cluster job, generate the cluster output file.
 if [[ $CLUSTER_FILE != "" ]] ; then 
+    echo "$0: Clustering"
     mkdir -p $(dirname $CLUSTER_FILE)
     foldseek clust \
         ${TEMPDIR}/queryDB \
         ${TEMPDIR}/alignment_DB \
-        ${TEMPDIR}/clusterDB
+        ${TEMPDIR}/clusterDB \
+        --cluster-mode 1
 
+    echo "$0: Writing cluster tsv file."
     foldseek createtsv \
         ${TEMPDIR}/queryDB \
         $DATABASE \
