@@ -360,6 +360,10 @@ def clean_up_gb_records(gb_records):
         description = description.replace(";", "")
         organism = organism.replace(";", "")
 
+        # Replace > with nothing
+        description = description.replace(">", "")
+        organism = organism.replace(">", "")
+
         # Replace / with _
         description = description.replace("/", "_")
         name = name.replace("/", "_")
