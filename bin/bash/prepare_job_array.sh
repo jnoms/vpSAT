@@ -85,7 +85,7 @@ LIST=\$(sed "\${SGE_TASK_ID}q;d" ${JOB_NAME}_lists/sublist_list.txt)
 
 cat \$LIST | while read LINE ; do
 
-FILE=\$($DIR\$LINE)
+FILE=$DIR\$LINE
 # FILE now is the relative path to an individual file! Do stuff.
 
 done
