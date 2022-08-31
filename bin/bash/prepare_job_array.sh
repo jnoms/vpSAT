@@ -81,12 +81,9 @@ cat << EOF
 #$ -l h_rt=0:15:00
 #$ -t 1-${FILE_COUNT}
 
-conda activate SAT
-
 LIST=\$(sed "\${SGE_TASK_ID}q;d" ${JOB_NAME}_lists/sublist_list.txt)
 
-
-cat $LIST | while read LINE ; do
+cat \$LIST | while read LINE ; do
 
 FILE=\$($DIR\$LINE)
 # FILE now is the relative path to an individual file! Do stuff.
