@@ -25,12 +25,6 @@ def sampleID_set_from_infile(input) {
   for (String item : file(input)) {
     file = file(item)
     name = file.baseName
-
-    // This will handle .fastq.gz and .fq.gz... baseName above only removes
-    // the last suffix.
-    if (name.endsWith(".fastq") | name.endsWith(".fq") )
-      name = name.take(name.lastIndexOf('.'))
-
     sample_set.add([name, file])
   }
   ch = Channel.from(tuple(sample_set))
