@@ -4,6 +4,8 @@
 params.out_dir = "output"
 params.reference_fasta = ""
 params.COLABFOLD_num_recycles = 3
+params.COLABFOLD_stop_at_score = 70
+params.COLABFOLD_stop_at_score_below = 40
 
 //============================================================================//
 // Define process
@@ -20,6 +22,10 @@ process colabfold {
   tuple val(sampleID),
     file("${sampleID}.pdb"),
     emit: structure
+  
+  tuple val(sampleID),
+    file("${sampleID}.scores.json"),
+    emit: scores
 
   tuple val(sampleID),
     file("${sampleID}_colabfold_output_dir/*"),
@@ -31,6 +37,9 @@ process colabfold {
   -i ${in_a3m} \
   -d ${sampleID}_colabfold_output_dir \
   -o ${sampleID}.pdb \
-  -n ${params.COLABFOLD_num_recycles}
+  -n ${params.COLABFOLD_num_recycles} \
+  -s ${sampleID}.scores.json \
+  -1 ${params.COLABFOLD_stop_at_score} \
+  -2 ${params.COLABFOLD_stop_at_score_below}
   """
 }

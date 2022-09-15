@@ -27,9 +27,20 @@ usage() {
         -o --OUTFILE {pdb}
             If specified, will create a copy of the best-model pdb file (e.g.
             the file that matches the path OUT_DIR/*rank_1*.pdb) at the
-            specified path.
+            specified path. Note - if there are multiple models that are rank_1 
+            (sometimes multiple have the same pLDDT), the first one will be picked.
+        -s --SCORE_FILE (json)
+            If specified, the scores json file of the best match will be output to this
+            path. 
         -n --NUM_RECYCLES {int} [DEFAULT: 3]
             Number of recycles for colabfold when generating structures.
+        -1 --STOP_AT_SCORE {int} [DEFAULT: 70]
+            If a model has at least this pLDDT, it will stop computing structures and 
+            use that model as the top.
+        -2 --STOP_AT_SCORE_BELOW {int} [DEFAULT: 40]
+            If a model has a pLDDT below this number, it is probably fruitless to
+            continue computing structures so stop computing and use the top model
+            up to now.
         -u --USE_CPU
             Boolean switch.
             If specified, will add the --cpu flag and run via cpu. Not
@@ -53,12 +64,15 @@ USE_CPU=false
 USER_AMBER=false
 
 #Setting input
-while getopts i:d:o:n:ua option ; do
+while getopts i:d:o:s:n:1:2:ua option ; do
         case "${option}"
         in
                 i) INFILE=${OPTARG};;
                 d) OUT_DIR=${OPTARG};;
                 o) OUTFILE=${OPTARG};;
+                s) SCORE_FILE=${OPTARG};;
+                1) STOP_AT_SCORE=${OPTARG};;
+                2) STOP_AT_SCORE_BELOW=${OPTARG};;
                 n) NUM_RECYCLES=${OPTARG};;
                 u) USE_CPU=true;;
                 a) USER_AMBER=true;;
@@ -71,6 +85,9 @@ done
 # Defaults
 NUM_RECYCLES=${NUM_RECYCLES:-3}
 OUTFILE=${OUTFILE:-""}
+SCORE_FILE=${SCORE_FILE:-""}
+STOP_AT_SCORE=${STOP_AT_SCORE:-70}
+STOP_AT_SCORE_BELOW=${STOP_AT_SCORE_BELOW:-40}
 
 if $USER_AMBER ; then
     AMBER_SETTING="--amber"
@@ -135,14 +152,19 @@ colabfold_batch \
     --templates \
     --num-recycle $NUM_RECYCLES \
     --use-gpu-relax \
+    --stop-at-score $STOP_AT_SCORE \
+    --stop-at-score-below $STOP_AT_SCORE_BELOW \
     $AMBER_SETTING \
     $INFILE \
-    $OUT_DIR
+    $OUT_DIR 
 
 # If OUTFILE is specified, copy the best model to the outfile
 if [[ $OUTFILE != "" ]] ; then
-    cp ${OUT_DIR}/*rank_1*.pdb $OUTFILE
+    cp $(ls ${OUT_DIR}/*rank_1*.pdb | head -n1) $OUTFILE
 fi
 
+if [[ $SCORE_FILE != "" ]] ; then
+    cp $(ls ${OUT_DIR}/*rank_1*.json | head -n1) $SCORE_FILE
+fi
 
 echo "ended at $(date)"
