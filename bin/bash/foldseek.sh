@@ -153,7 +153,7 @@ mkdir -p $TEMPDIR
 # Generate query database
 if $INFILE_IS_DB ; then 
     echo "$0: INFILE specified as a foldseek database."
-    cp $INFILE ${TEMPDIR}/queryDB
+    ln -s $INFILE ${TEMPDIR}/queryDB
 else
     echo "$0: Making query database"
     foldseek createdb \
