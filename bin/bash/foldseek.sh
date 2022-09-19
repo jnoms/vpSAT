@@ -48,7 +48,7 @@ usage() {
         -D --INFILE_IS_DB
             Boolean flag.
             If specified, will treat the INFILE as a pre-made query database made with
-            foldseek createdb. 
+            foldseek createdb. [NOTE - UNTESTED]
         -c --CLEAN_UP 
             Boolean flag.
             If specified, will delete the TEMPDIR.
