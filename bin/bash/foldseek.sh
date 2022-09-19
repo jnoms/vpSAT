@@ -17,7 +17,7 @@ usage() {
 
         Either-or params:
         -d --DATABASE {database}
-            Path to a database generated with foldseek createdb.
+            Path to a TARGET database generated with foldseek createdb.
         -C --CLUSTER_FILE {path}
             If specified, will produce a cluster output file using the foldseek 
             cluster command. Here, the INFILE will be used as both the query and target
@@ -44,7 +44,11 @@ usage() {
             and will pretty much ensure that two items that have an alignment will be
             in the same cluster. Mode 0 will split up networks of alignments into 
             smaller core clusters.
-        
+
+        -D --INFILE_IS_DB
+            Boolean flag.
+            If specified, will treat the INFILE as a pre-made query database made with
+            foldseek createdb. 
         -c --CLEAN_UP 
             Boolean flag.
             If specified, will delete the TEMPDIR.
@@ -58,11 +62,12 @@ if [ $# -le 4 ] ; then
 fi
 
 # Boolean flag defaults
+INFILE_IS_DB=false
 CLEAN_UP=false
 
 
 #Setting input
-while getopts i:o:d:C:f:t:e:T:H:m:c option ; do
+while getopts i:o:d:C:f:t:e:T:H:m:Dc option ; do
         case "${option}"
         in
                 i) INFILE=${OPTARG};;
@@ -75,6 +80,7 @@ while getopts i:o:d:C:f:t:e:T:H:m:c option ; do
                 T) TEMPDIR=${OPTARG};;
                 H) HTML_FILE=${OPTARG};;
                 m) FOLDSEEK_CLUSTER_MODE=${OPTARG};;
+                D) INFILE_IS_DB=true;;
                 c) CLEAN_UP=true;;
         esac
 done
@@ -134,6 +140,7 @@ EVALUE: $EVALUE
 TEMPDIR: $TEMPDIR
 HTML_FILE: $HTML_FILE
 FOLDSEEK_CLUSTER_MODE: $FOLDSEEK_CLUSTER_MODE
+INFILE_IS_DB: $INFILE_IS_DB
 CLEAN_UP: $CLEAN_UP
 "
 
@@ -144,11 +151,16 @@ mkdir -p $(dirname $OUT_FILE)
 mkdir -p $TEMPDIR
 
 # Generate query database
-echo "$0: Making query database"
-foldseek createdb \
-    $INFILE \
-    ${TEMPDIR}/queryDB \
-    --threads $THREADS
+if $INFILE_IS_DB ; then 
+    echo "$0: INFILE specified as a foldseek database."
+    cp $INFILE ${TEMPDIR}/queryDB
+else
+    echo "$0: Making query database"
+    foldseek createdb \
+        $INFILE \
+        ${TEMPDIR}/queryDB \
+        --threads $THREADS
+fi
 
 # If this is a cluster job, specify DATABASE as the query database.
 if [[ $CLUSTER_FILE != "" ]] ; then 
