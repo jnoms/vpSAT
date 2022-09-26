@@ -34,6 +34,8 @@ usage() {
             path. 
         -n --NUM_RECYCLES {int} [DEFAULT: 3]
             Number of recycles for colabfold when generating structures.
+        -m --NUM_MODELS {int} [DEFAULT: 3]
+            Number of colabfold models to run. Options are {1, 2, 3, 4, 5}.
         -1 --STOP_AT_SCORE {int} [DEFAULT: 70]
             If a model has at least this pLDDT, it will stop computing structures and 
             use that model as the top.
@@ -64,7 +66,7 @@ USE_CPU=false
 USER_AMBER=false
 
 #Setting input
-while getopts i:d:o:s:n:1:2:ua option ; do
+while getopts i:d:o:s:n:1:2:m:ua option ; do
         case "${option}"
         in
                 i) INFILE=${OPTARG};;
@@ -74,6 +76,7 @@ while getopts i:d:o:s:n:1:2:ua option ; do
                 1) STOP_AT_SCORE=${OPTARG};;
                 2) STOP_AT_SCORE_BELOW=${OPTARG};;
                 n) NUM_RECYCLES=${OPTARG};;
+                m) NUM_MODELS=${OPTARG};;
                 u) USE_CPU=true;;
                 a) USER_AMBER=true;;
         esac
@@ -88,6 +91,7 @@ OUTFILE=${OUTFILE:-""}
 SCORE_FILE=${SCORE_FILE:-""}
 STOP_AT_SCORE=${STOP_AT_SCORE:-70}
 STOP_AT_SCORE_BELOW=${STOP_AT_SCORE_BELOW:-40}
+NUM_MODELS=${NUM_MODELS:-3}
 
 if $USER_AMBER ; then
     AMBER_SETTING="--amber"
@@ -138,6 +142,9 @@ INFILE: $INFILE
 OUT_DIR: $OUT_DIR
 OUTFILE: $OUTFILE
 NUM_RECYCLES: $NUM_RECYCLES
+STOP_AT_SCORE: $STOP_AT_SCORE
+STOP_AT_SCORE_BELOW: $STOP_AT_SCORE_BELOW
+NUM_MODELS: $NUM_MODELS
 USE_CPU: $USE_CPU
 USER_AMBER: $USER_AMBER
 "
@@ -154,6 +161,7 @@ colabfold_batch \
     --use-gpu-relax \
     --stop-at-score $STOP_AT_SCORE \
     --stop-at-score-below $STOP_AT_SCORE_BELOW \
+    --num-models $NUM_MODELS \
     $AMBER_SETTING \
     $INFILE \
     $OUT_DIR 

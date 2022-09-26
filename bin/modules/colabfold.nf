@@ -6,6 +6,7 @@ params.reference_fasta = ""
 params.COLABFOLD_num_recycles = 3
 params.COLABFOLD_stop_at_score = 70
 params.COLABFOLD_stop_at_score_below = 40
+params.COLABFOLD_num_models = 3
 
 //============================================================================//
 // Define process
@@ -38,6 +39,7 @@ process colabfold {
   -d ${sampleID}_colabfold_output_dir \
   -o ${sampleID}.pdb \
   -n ${params.COLABFOLD_num_recycles} \
+  -m ${params.COLABFOLD_num_models} \
   -s ${sampleID}.scores.json \
   -1 ${params.COLABFOLD_stop_at_score} \
   -2 ${params.COLABFOLD_stop_at_score_below}
