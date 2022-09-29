@@ -369,6 +369,11 @@ def clean_up_gb_records(gb_records):
         name = name.replace("/", "_")
         organism = organism.replace("/", "_")
 
+        # Replace * with nothing
+        description = description.replace("*", "")
+        name = name.replace("*", "")
+        organism = organism.replace("*", "")
+
         # Replace spaces with _. Also handle multiple subsequent spaces
         description = re.sub('\s+', '_', description)
         name = re.sub('\s+', '_', name)
