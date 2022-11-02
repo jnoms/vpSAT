@@ -118,7 +118,9 @@ hhblits \
     -cpu $THREADS
 
 echo "$0: Filtering the blasttab output by evalue"
-awk -v EVALUE=$EVALUE '$11 < EVALUE' ${BLAST_OUT}.tmp >> ${BLAST_OUT} && \
-    rm ${BLAST_OUT}.tmp
+# The sed removes empty lines
+awk -v EVALUE=$EVALUE '$11 < EVALUE' ${BLAST_OUT}.tmp |\
+    sed -i '/^$/d' > \
+    ${BLAST_OUT} && rm ${BLAST_OUT}.tmp
 
 echo "$0: Finished at $(date)"
