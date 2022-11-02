@@ -19,7 +19,7 @@ usage() {
         -1 --BLAST_OUT {m8}
             Path to the output blast-tabulated file. This file has the column fields:
             'query,target,fident,alnlen,mismatch,gapopen,qstart,qend,tstart,tend,evalue,
-            bits'. NOTE - this file will be appended to if it already exists.
+            bits'.
         -2 --HRR_OUT {.hrr}
             Path to the verbose hh-suite hhr output file.
 
@@ -101,10 +101,6 @@ EVALUE: $EVALUE
 "
 
 echo "$0: Started at $(date)"
-
-if [[ -f ${BLAST_OUT} ]] ; then
-    echo "Note - $BLAST_OUT exists. It will be appended to."
-fi
 
 # Make output directories if needed
 mkdir -p $(dirname $BLAST_OUT)
