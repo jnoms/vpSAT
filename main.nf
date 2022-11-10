@@ -11,8 +11,8 @@ include { foldseek } from './bin/modules/foldseek'
 //============================================================================//
 // Validate inputs
 //============================================================================//
-if( (params.workflow != "colabfold") && (params.workflow != "foldseek")) {
-  error "params.workflow must be set to 'colabfold' or 'foldseek'."
+if (params.workflow != "colabfold") {
+  error "params.workflow must be set to 'colabfold'."
 }
 
 //============================================================================//
@@ -47,15 +47,6 @@ workflow colabfold_workflow {
 
 }
 
-workflow foldseek_workflow {
-  take: input_ch
-  main:
-
-  // Run foldseek of each query against the input database
-  foldseek(input_ch)
-
-}
-
 //============================================================================//
 // Define main workflow
 //============================================================================//
@@ -66,6 +57,5 @@ workflow {
 
     if ( params.workflow == "colabfold" )
       colabfold_workflow(input_ch)
-    else if ( params.workflow == "foldseek" )
-      foldseek_workflow(input_ch)
+    
 }
