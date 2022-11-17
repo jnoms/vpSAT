@@ -9,13 +9,6 @@ include { colabfold } from './bin/modules/colabfold'
 include { foldseek } from './bin/modules/foldseek'
 
 //============================================================================//
-// Validate inputs
-//============================================================================//
-if (params.workflow != "colabfold") {
-  error "params.workflow must be set to 'colabfold'."
-}
-
-//============================================================================//
 // Defining functions
 //============================================================================//
 def sampleID_set_from_infile(input) {
@@ -54,6 +47,7 @@ workflow {
 
   main:
     infile_channel = sampleID_set_from_infile(params.in_files)
+    infile_channel.view()
     reference_channel = Channel.fromPath(params.reference_fasta)
 
     // Add the reference to each tuple in the infile_channel
