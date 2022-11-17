@@ -85,13 +85,13 @@ if (( $(grep -c "^>" $QUERY) > 1 )) ; then
 fi
 
 # Make sure all input files exist
-if [ ! -f $QUERY ] ; then
-    echo "QUERY file, $QUERY, not detected."
-    exit 1
-elif [ ! -f $SUBJECT ] ; then
-    echo "SUBJECT file, $SUBJECT, not detected."
-    exit 1
-fi
+# if [ ! -f $QUERY ] ; then
+#     echo "QUERY file, $QUERY, not detected."
+#     exit 1
+# elif [ ! -f $SUBJECT ] ; then
+#     echo "SUBJECT file, $SUBJECT, not detected."
+#     exit 1
+# fi
 
 # Make sure required programs are available
 if ! command -v mmseqs ; then

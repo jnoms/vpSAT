@@ -53,7 +53,12 @@ workflow colabfold_workflow {
 workflow {
 
   main:
-    input_ch = sampleID_set_from_infile(params.in_files)
+    infile_channel = sampleID_set_from_infile(params.in_files)
+    reference_channel = Channel.fromPath(params.reference_fasta)
+
+    // Add the reference to each tuple in the infile_channel
+    // each tuple is now (ID, input_file, reference_fasta)
+    input_ch = infile_channel.combine(reference_channel)
 
     if ( params.workflow == "colabfold" )
       colabfold_workflow(input_ch)

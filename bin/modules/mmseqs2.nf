@@ -13,7 +13,7 @@ process mmseqs2 {
   publishDir "$params.out_dir/mmseqs2", mode: "copy"
 
   input:
-  tuple val(sampleID), file(in_fasta)
+  tuple val(sampleID), file(in_fasta), file(reference_fasta)
 
   output:
   tuple val(sampleID),
@@ -22,9 +22,9 @@ process mmseqs2 {
 
   script:
   """
-  $workflow.projectDir/bin/bash/mmseqs.sh \
+  mmseqs.sh \
   -q ${in_fasta} \
-  -s ${params.reference_fasta} \
+  -s ${reference_fasta} \
   -o ${sampleID}.a3m \
   -n ${sampleID} \
   -t ${task.cpus}
