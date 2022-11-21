@@ -34,7 +34,7 @@ process colabfold {
 
   script:
   """
-  $workflow.projectDir/bin/bash/colabfold.sh \
+  colabfold.sh \
   -i ${in_a3m} \
   -d ${sampleID}_colabfold_output_dir \
   -o ${sampleID}.pdb \
