@@ -47,7 +47,6 @@ workflow {
 
   main:
     infile_channel = sampleID_set_from_infile(params.in_files)
-    infile_channel.view()
     reference_channel = Channel.fromPath(params.reference_fasta)
 
     // Add the reference to each tuple in the infile_channel
