@@ -110,8 +110,16 @@ while [[ $COUNT -le $TOTAL_INPUTS ]] ; do
     c4="${alphabet:$(( RANDOM % ${#alphabet} )):1}"
     ID="${c1}${c2}${c3}${c4}"
     
+    # If the ID is already used in the blacklist key, continue
     if [[ -f $STRUCTURE_KEY_BLACKLIST ]] ; then
         if grep $ID $STRUCTURE_KEY_BLACKLIST ; then
+            continue
+        fi
+    fi
+
+    # If the ID is already used in the current key, continue
+    if [[ -f $TEMP/IDs.txt ]] ; then
+        if grep $ID $TEMP/IDs.txt ; then
             continue
         fi
     fi
