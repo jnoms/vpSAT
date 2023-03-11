@@ -29,7 +29,7 @@ process mmseqs2 {
   -n ${sampleID} \
   -t ${task.cpus}
 
-  COUNT=$(grep -c "^>" ${sampleID}.a3m)
+  COUNT=\$(grep -c "^>" ${sampleID}.a3m)
   if [[ \$COUNT -le 1 ]] ; then
     rm ${sampleID}.a3m
     touch ${sampleID}.a3m
