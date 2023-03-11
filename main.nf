@@ -36,7 +36,7 @@ workflow colabfold_workflow {
   mmseqs2(input_ch)
 
   // Run Colabfold
-  colabfold(mmseqs2.out.a3m)
+  mmseqs2.out.a3m.filter{ it[1].size() > 0 } | colabfold()
 
 }
 
