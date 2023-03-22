@@ -38,12 +38,18 @@ usage() {
             Path to the temp file directory.
         -H --HTML_FILE {html} [Default: '']
             If specified, will also output a html file to this path.
-        -m --FOLDSEEK_CLUSTER_MODE [Default: 1]
+        -m --FOLDSEEK_CLUSTER_MODE [Default: 0]
             When doing clustering (e.g. -C --CLUSTER_FILE is specified), this is the 
-            clustering mode that will be used. The default of 1 is pretty stringent
+            clustering mode that will be used. Mode 0 will split up networks of
+            alignments into smaller core clusters. Mode 1 is pretty stringent
             and will pretty much ensure that two items that have an alignment will be
-            in the same cluster. Mode 0 will split up networks of alignments into 
-            smaller core clusters.
+            in the same cluster. 
+        -v --COV_REQUIREMENT [Default: 0]
+            Float between 0 and 1. When doing alignments, will require this fraction of
+            residues to align based on CoV-mode - see below.
+        -M --FOLDSEEK_COVERAGE_MODE [Default: 0]
+            Options are 0, 1 and 2. Dictates how the coverage is calculated.
+            0: coverage of query and target, 1: coverage of target, 2: coverage of query
 
         -D --INFILE_IS_DB
             Boolean flag.
@@ -67,7 +73,7 @@ CLEAN_UP=false
 
 
 #Setting input
-while getopts i:o:d:C:f:t:e:T:H:m:Dc option ; do
+while getopts i:o:d:C:f:t:e:T:H:m:v:M:Dc option ; do
         case "${option}"
         in
                 i) INFILE=${OPTARG};;
@@ -80,6 +86,8 @@ while getopts i:o:d:C:f:t:e:T:H:m:Dc option ; do
                 T) TEMPDIR=${OPTARG};;
                 H) HTML_FILE=${OPTARG};;
                 m) FOLDSEEK_CLUSTER_MODE=${OPTARG};;
+                v) COV_REQUIREMENT=${OPTARG};;
+                m) FOLDSEEK_COVERAGE_MODE=${OPTARG};;
                 D) INFILE_IS_DB=true;;
                 c) CLEAN_UP=true;;
         esac
@@ -96,7 +104,9 @@ THREADS=${THREADS:-1}
 EVALUE=${EVALUE:-0.001}
 TEMPDIR=${TEMPDIR:-"$(basename ${INFILE})_TEMP"}
 HTML_FILE=${HTML_FILE:-""}
-FOLDSEEK_CLUSTER_MODE=${FOLDSEEK_CLUSTER_MODE:-1}
+FOLDSEEK_CLUSTER_MODE=${FOLDSEEK_CLUSTER_MODE:-0}
+COV_REQUIREMENT=${COV_REQUIREMENT:-0}
+FOLDSEEK_COVERAGE_MODE=${FOLDSEEK_COVERAGE_MODE:-0}
 
 #------------------------------------------------------------------------------#
 # Validate inputs and program availablity
@@ -140,6 +150,8 @@ EVALUE: $EVALUE
 TEMPDIR: $TEMPDIR
 HTML_FILE: $HTML_FILE
 FOLDSEEK_CLUSTER_MODE: $FOLDSEEK_CLUSTER_MODE
+COV_REQUIREMENT: $COV_REQUIREMENT
+FOLDSEEK_COVERAGE_MODE: $FOLDSEEK_COVERAGE_MODE
 INFILE_IS_DB: $INFILE_IS_DB
 CLEAN_UP: $CLEAN_UP
 "
@@ -176,7 +188,9 @@ foldseek search \
     ${TEMPDIR} \
     -a \
     --threads $THREADS \
-    -e $EVALUE
+    -e $EVALUE  \
+    -c $COV_REQUIREMENT \
+    --cov-mode $FOLDSEEK_COVERAGE_MODE
 
 # Convert to tabular output
 echo "$0: Writing tabular output"
