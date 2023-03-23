@@ -30,6 +30,9 @@ usage() {
             is the most important information about the alignments. transrot is 
             highly useful for rotating target structures after alignment. The additional
             field is alignments.
+        -s --SYMMETRY {oneway,twoway} ['oneway'] 
+            Options are oneway or twoway. If oneway is specified, will use the --oneway
+            switch. This is a substaintial speedup.
 
         Some additional details:
         - Because DALI hates when paths are above 60 or 80 characters, the query_dir and 
@@ -45,13 +48,14 @@ if [ $# -le 4 ] ; then
 fi
 
 #Setting input
-while getopts q:t:o:f: option ; do
+while getopts q:t:o:f:s: option ; do
         case "${option}"
         in
                 q) QUERY_DIR=${OPTARG};;
                 t) TARGET_DIR=${OPTARG};;
                 o) OUT_DIR=${OPTARG};;
                 f) OUTPUT_FORMAT=${OPTARG};;
+                s) SYMMETRY=${OPTARG};;
         esac
 done
 
@@ -60,12 +64,22 @@ done
 #------------------------------------------------------------------------------#
 # Defaults
 OUTPUT_FORMAT=${OUTPUT_FORMAT:-"summary,equivalences,transrot"}
+SYMMETRY=${SYMMETRY:-oneway}
 
 #------------------------------------------------------------------------------#
 # Validate inputs and program availablity
 #------------------------------------------------------------------------------#
 if ! command -v dali.pl ; then
     echo "dali.pl not detected!"
+    exit 1
+fi
+
+if [[ $SYMMETRY == "oneway" ]] ; then
+    SYMMETRY_LINE="--oneway"
+elif [[ $SYMMETRY == "twoway"]] ; then
+    SYMMETRY_LINE=""
+else
+    echo "SYMMETRY must be set to 'oneway' or 'twoway!! You entered $SYMMETRY"
     exit 1
 fi
 
@@ -78,6 +92,7 @@ $0 inputs:
 QUERY_DIR: $QUERY_DIR
 TARGET_DIR: $TARGET_DIR
 OUT_DIR: $OUT_DIR
+SYMMETRY_LINE: $SYMMETRY_LINE
 "
 
 echo "$0: Started at $(date)"
@@ -106,6 +121,7 @@ time dali.pl \
 --query lists/query_list.txt \
 --db lists/target_list.txt \
 --clean \
+$SYMMETRY_LINE \
 --outfmt $OUTPUT_FORMAT
 cd ..
 
