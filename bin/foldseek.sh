@@ -25,7 +25,7 @@ usage() {
 
         Optional params:
         -f --FIELDS {comma-delimited string}
-            [Default: 'query,target,fident,alnlen,mismatch,gapopen,qstart,qend,tstart,tend,evalue,bits,alntmscore']
+            [Default: 'query,target,fident,alnlen,mismatch,gapopen,qstart,qend,tstart,qlen,tlen,tend,evalue,bits,alntmscore']
             The output fields present in the tabular output file. 'taxid' is not
             present at default but is useful - just make sure that the database
             searched against has taxonomy information. 
@@ -99,7 +99,7 @@ done
 # Defaults
 DATABASE=${DATABASE:-""}
 CLUSTER_FILE=${CLUSTER_FILE:-""}
-FIELDS=${FIELDS:-"query,target,fident,alnlen,mismatch,gapopen,qstart,qend,tstart,tend,evalue,bits,alntmscore"}
+FIELDS=${FIELDS:-"query,target,fident,alnlen,mismatch,gapopen,qstart,qend,tstart,tend,qlen,tlen,evalue,bits,alntmscore"}
 THREADS=${THREADS:-1}
 EVALUE=${EVALUE:-0.001}
 TEMPDIR=${TEMPDIR:-"$(basename ${INFILE})_TEMP"}
