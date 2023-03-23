@@ -87,6 +87,7 @@ $0 inputs:
 QUERY_DIR: $QUERY_DIR
 TARGET_DIR: $TARGET_DIR
 OUT_DIR: $OUT_DIR
+SINGLE_QUERY: $SINGLE_QUERY
 "
 
 echo "$0: Started at $(date)"
