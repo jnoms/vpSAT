@@ -30,6 +30,11 @@ usage() {
             is the most important information about the alignments. transrot is 
             highly useful for rotating target structures after alignment. The additional
             field is alignments.
+        -Q --SINGLE_QUERY {string} ['']
+            This should be the basename of a single .dat file. If this is specified, 
+            the query_list will be just that single basename, and that will be the only
+            query. This is a helpful option if you want to submit many parallel jobs and
+            want to search for just one query at a time per script execution.
 
         Some additional details:
         - Because DALI hates when paths are above 60 or 80 characters, the query_dir and 
@@ -45,13 +50,14 @@ if [ $# -le 4 ] ; then
 fi
 
 #Setting input
-while getopts q:t:o:f: option ; do
+while getopts q:t:o:f:Q: option ; do
         case "${option}"
         in
                 q) QUERY_DIR=${OPTARG};;
                 t) TARGET_DIR=${OPTARG};;
                 o) OUT_DIR=${OPTARG};;
                 f) OUTPUT_FORMAT=${OPTARG};;
+                Q) SINGLE_QUERY=${OPTARG};;
         esac
 done
 
@@ -60,6 +66,7 @@ done
 #------------------------------------------------------------------------------#
 # Defaults
 OUTPUT_FORMAT=${OUTPUT_FORMAT:-"summary,equivalences,transrot"}
+SINGLE_QUERY=${SINGLE_QUERY:-""}
 
 #------------------------------------------------------------------------------#
 # Validate inputs and program availablity
@@ -94,7 +101,18 @@ ln -s $(realpath $TARGET_DIR) $TEMP/target_dir_symlink
 
 # Prepare file lists for dali
 mkdir -p $TEMP/lists
-ls $TEMP/query_dir_symlink | awk -F . '{print $1}'  > $TEMP/lists/query_list.txt
+if [[ $SINGLE_QUERY == "" ]] ; then 
+    ls $TEMP/query_dir_symlink | awk -F . '{print $1}'  > $TEMP/lists/query_list.txt
+else 
+    if [[ -f $TEMP/query_dir_symlink/${SINGLE_QUERY} ]] ; then
+        echo "Detected a single query, $SINGLE_QUERY"
+        echo ${SINGLE_QUERY} > $TEMP/lists/query_list.txt
+    else
+        echo "Cannot find SINGLE_QUERY, $SINGLE_QUERY! Something is wrong."
+        echo "I looked at $TEMP/query_dir_symlink/${SINGLE_QUERY}"
+        exit 1
+    fi
+fi
 ls $TEMP/target_dir_symlink | awk -F . '{print $1}'  > $TEMP/lists/target_list.txt
 
 # Run DALI. Will also capture exicution time. I move into the TEMP directory to run it
