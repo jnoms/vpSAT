@@ -34,7 +34,9 @@ usage() {
             This should be the basename of a single .dat file. If this is specified, 
             the query_list will be just that single basename, and that will be the only
             query. This is a helpful option if you want to submit many parallel jobs and
-            want to search for just one query at a time per script execution.
+            want to search for just one query at a time per script execution. Note that 
+            the entiry should be exactly what the dat file is named, e.g. 
+            'xxxxA.dat' or something like that.
 
         Some additional details:
         - Because DALI hates when paths are above 60 or 80 characters, the query_dir and 
