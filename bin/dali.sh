@@ -76,7 +76,7 @@ fi
 
 if [[ $SYMMETRY == "oneway" ]] ; then
     SYMMETRY_LINE="--oneway"
-elif [[ $SYMMETRY == "twoway"]] ; then
+elif [[ $SYMMETRY == "twoway" ]] ; then
     SYMMETRY_LINE=""
 else
     echo "SYMMETRY must be set to 'oneway' or 'twoway!! You entered $SYMMETRY"
