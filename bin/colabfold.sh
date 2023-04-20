@@ -108,7 +108,7 @@ fi
 # only has one sequence
 if [[ $INFILE == *.a3m ]] ; then
     :
-elif [[ $INFILE == "*.fasta" ]] ; then
+elif [[ $INFILE == *.fasta ]] ; then
     if (( $(grep -c "^>" $INFILE) > 1 )) ; then 
         echo "Input fasta file must contain only one sequence."
         echo "(grep -c "^>" $INFILE) sequences are detected."
