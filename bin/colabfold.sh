@@ -159,8 +159,8 @@ colabfold_batch \
     --templates \
     --num-recycle $NUM_RECYCLES \
     --use-gpu-relax \
-    --stop-at-score $STOP_AT_SCORE \
-    --stop-at-score-below $STOP_AT_SCORE_BELOW \
+    # --stop-at-score $STOP_AT_SCORE \
+    # --stop-at-score-below $STOP_AT_SCORE_BELOW \
     --num-models $NUM_MODELS \
     $AMBER_SETTING \
     $INFILE \
