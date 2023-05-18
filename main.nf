@@ -11,8 +11,8 @@ include { foldseek } from './bin/modules/foldseek'
 //============================================================================//
 // Check params
 //============================================================================//
-if( (params.input_type != "fasta") && (params.input_type != "a3m")) {
-  error "params.input_type must be set to 'fasta' or 'a3m'."
+if( (params.entry_point != "mmseqs") && (entry_point.input_type != "colabfold")) {
+  error "params.input_type must be set to 'mmseqs' or 'colabfold'."
 }
 
 
@@ -65,7 +65,7 @@ workflow {
 
   main:
 
-    if ( params.input_type == "fasta" ) {
+    if ( params.entry_point == "mmseqs" ) {
       infile_channel = sampleID_set_from_infile(params.in_files)
       reference_channel = Channel.fromPath(params.reference_fasta)
 
@@ -75,7 +75,7 @@ workflow {
       colabfold_workflow(input_ch)
     }
 
-    else if ( params.input_type == "a3m" ) {
+    else if ( params.entry_point == "colabfold" ) {
       infile_channel = sampleID_set_from_infile(params.in_files)
       colabfold_workflow_a3m_entry(infile_channel)
     }
