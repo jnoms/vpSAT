@@ -168,12 +168,13 @@ colabfold_batch \
     # --stop-at-score-below $STOP_AT_SCORE_BELOW \
 
 # If OUTFILE is specified, copy the best model to the outfile
+# Depending on the colabfold version in the system, the ranks are labled rank_N or rank_00N
 if [[ $OUTFILE != "" ]] ; then
-    cp $(ls ${OUT_DIR}/*rank_1*.pdb | head -n1) $OUTFILE
+    cp $(ls ${OUT_DIR}/*rank_1*.pdb | head -n1) $OUTFILE || cp $(ls ${OUT_DIR}/*rank_001*.pdb | head -n1) $OUTFILE
 fi
 
 if [[ $SCORE_FILE != "" ]] ; then
-    cp $(ls ${OUT_DIR}/*rank_1*.json | head -n1) $SCORE_FILE
+    cp $(ls ${OUT_DIR}/*rank_1*.json | head -n1) $SCORE_FILE || cp $(ls ${OUT_DIR}/*rank_001*.json | head -n1) $SCORE_FILE
 fi
 
 echo "ended at $(date)"
