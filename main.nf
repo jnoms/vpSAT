@@ -11,7 +11,7 @@ include { foldseek } from './bin/modules/foldseek'
 //============================================================================//
 // Check params
 //============================================================================//
-if( (params.entry_point != "mmseqs") && (entry_point.input_type != "colabfold")) {
+if( (params.entry_point != "mmseqs") && (params.entry_point != "colabfold")) {
   error "params.input_type must be set to 'mmseqs' or 'colabfold'."
 }
 
