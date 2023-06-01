@@ -7,6 +7,7 @@ params.COLABFOLD_num_recycles = 3
 params.COLABFOLD_stop_at_score = 70
 params.COLABFOLD_stop_at_score_below = 40
 params.COLABFOLD_num_models = 3
+params.COLABFOLD_custom_templates_dir = ""
 
 //============================================================================//
 // Define process
@@ -42,6 +43,7 @@ process colabfold {
   -m ${params.COLABFOLD_num_models} \
   -s ${sampleID}.scores.json \
   -1 ${params.COLABFOLD_stop_at_score} \
-  -2 ${params.COLABFOLD_stop_at_score_below}
+  -2 ${params.COLABFOLD_stop_at_score_below} \
+  -c ${params.COLABFOLD_custom_templates_dir}
   """
 }
