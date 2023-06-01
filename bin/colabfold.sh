@@ -43,6 +43,13 @@ usage() {
             If a model has a pLDDT below this number, it is probably fruitless to
             continue computing structures so stop computing and use the top model
             up to now.
+        -c --CUSTOM_TEMPLATES_DIR {dir} [DEFAULT: '']
+            If you're running colabfold completely locally, you don't want it to
+            try to contact the templates server. Instead, provide a path to a directory
+            that contains .cif structure files (must be .cif, not .cif.gz and not 
+            .pdb). These structures will be searched for templates. This can be slow for
+            e.g. a local copy of the pdb. If you want to avoid using templates entirely,
+            specify a path to a directory with a single .cif file.
         -u --USE_CPU
             Boolean switch.
             If specified, will add the --cpu flag and run via cpu. Not
@@ -66,7 +73,7 @@ USE_CPU=false
 USER_AMBER=false
 
 #Setting input
-while getopts i:d:o:s:n:1:2:m:ua option ; do
+while getopts i:d:o:s:n:1:2:m:c:ua option ; do
         case "${option}"
         in
                 i) INFILE=${OPTARG};;
@@ -77,6 +84,7 @@ while getopts i:d:o:s:n:1:2:m:ua option ; do
                 2) STOP_AT_SCORE_BELOW=${OPTARG};;
                 n) NUM_RECYCLES=${OPTARG};;
                 m) NUM_MODELS=${OPTARG};;
+                c) CUSTOM_TEMPLATES_DIR=${OPTARG};;
                 u) USE_CPU=true;;
                 a) USER_AMBER=true;;
         esac
@@ -92,6 +100,13 @@ SCORE_FILE=${SCORE_FILE:-""}
 STOP_AT_SCORE=${STOP_AT_SCORE:-70}
 STOP_AT_SCORE_BELOW=${STOP_AT_SCORE_BELOW:-40}
 NUM_MODELS=${NUM_MODELS:-3}
+CUSTOM_TEMPLATES_DIR=${CUSTOM_TEMPLATES_DIR:-""}
+
+if [[ $CUSTOM_TEMPLATES_DIR == "" ]] ; then
+    CUSTOM_TEMPLATES_SETTING=""
+else
+    CUSTOM_TEMPLATES_SETTING="--custom-template-path ${CUSTOM_TEMPLATES_DIR}"
+fi
 
 if $USER_AMBER ; then
     AMBER_SETTING="--amber"
@@ -145,6 +160,7 @@ NUM_RECYCLES: $NUM_RECYCLES
 STOP_AT_SCORE: $STOP_AT_SCORE
 STOP_AT_SCORE_BELOW: $STOP_AT_SCORE_BELOW
 NUM_MODELS: $NUM_MODELS
+CUSTOM_TEMPLATES_DIR: $CUSTOM_TEMPLATES_DIR
 USE_CPU: $USE_CPU
 USER_AMBER: $USER_AMBER
 "
@@ -160,6 +176,7 @@ colabfold_batch \
     --num-recycle $NUM_RECYCLES \
     --use-gpu-relax \
     --num-models $NUM_MODELS \
+    $CUSTOM_TEMPLATES_SETTING \
     $AMBER_SETTING \
     $INFILE \
     $OUT_DIR 
