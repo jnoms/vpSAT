@@ -48,8 +48,11 @@ usage() {
             try to contact the templates server. Instead, provide a path to a directory
             that contains .cif structure files (must be .cif, not .cif.gz and not 
             .pdb). These structures will be searched for templates. This can be slow for
-            e.g. a local copy of the pdb. If you want to avoid using templates entirely,
-            specify a path to a directory with a single .cif file.
+            e.g. a local copy of the pdb.
+        -t --USE_TEMPLATES
+            Boolean switch.
+            If specified, will query the templates server (or use
+            --CUSTOM_TEMPLATES_DIR) to find templates for structure prediction.
         -u --USE_CPU
             Boolean switch.
             If specified, will add the --cpu flag and run via cpu. Not
@@ -71,9 +74,10 @@ fi
 # Boolean flag defaults
 USE_CPU=false
 USER_AMBER=false
+USE_TEMPLATES=false
 
 #Setting input
-while getopts i:d:o:s:n:1:2:m:c:ua option ; do
+while getopts i:d:o:s:n:1:2:m:c:tua option ; do
         case "${option}"
         in
                 i) INFILE=${OPTARG};;
@@ -85,6 +89,7 @@ while getopts i:d:o:s:n:1:2:m:c:ua option ; do
                 n) NUM_RECYCLES=${OPTARG};;
                 m) NUM_MODELS=${OPTARG};;
                 c) CUSTOM_TEMPLATES_DIR=${OPTARG};;
+                t) USE_TEMPLATES=true;;
                 u) USE_CPU=true;;
                 a) USER_AMBER=true;;
         esac
@@ -105,7 +110,19 @@ CUSTOM_TEMPLATES_DIR=${CUSTOM_TEMPLATES_DIR:-""}
 if [[ $CUSTOM_TEMPLATES_DIR == "" ]] ; then
     CUSTOM_TEMPLATES_SETTING=""
 else
-    CUSTOM_TEMPLATES_SETTING="--custom-template-path ${CUSTOM_TEMPLATES_DIR}"
+    if $USE_TEMPLATES ; then
+        CUSTOM_TEMPLATES_SETTING="--custom-template-path ${CUSTOM_TEMPLATES_DIR}"
+    else
+        echo "You've specified --CUSTOM_TEMPLATES_DIR but aren't using the"
+        echo " --USE_TEMPLATES switch."
+        exit 1
+    fi
+fi
+
+if $USE_TEMPLATES ; then
+    USE_TEMPLATES_SETTINGS="--templates"
+else
+    USE_TEMPLATES_SETTINGS=""
 fi
 
 if $USER_AMBER ; then
@@ -161,6 +178,7 @@ STOP_AT_SCORE: $STOP_AT_SCORE
 STOP_AT_SCORE_BELOW: $STOP_AT_SCORE_BELOW
 NUM_MODELS: $NUM_MODELS
 CUSTOM_TEMPLATES_DIR: $CUSTOM_TEMPLATES_DIR
+USE_TEMPLATES: $USE_TEMPLATES
 USE_CPU: $USE_CPU
 USER_AMBER: $USER_AMBER
 "
@@ -172,10 +190,10 @@ mkdir -p $OUT_DIR
 
 # Run colabfold
 colabfold_batch \
-    --templates \
     --num-recycle $NUM_RECYCLES \
     --use-gpu-relax \
     --num-models $NUM_MODELS \
+    $USE_TEMPLATES_SETTINGS \
     $CUSTOM_TEMPLATES_SETTING \
     $AMBER_SETTING \
     $INFILE \
