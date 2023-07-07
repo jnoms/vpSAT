@@ -106,6 +106,7 @@ FIELDS=${FIELDS:-"query,target,fident,alnlen,qlen,tlen,mismatch,gapopen,qstart,q
 THREADS=${THREADS:-1}
 EVALUE=${EVALUE:-0.001}
 TEMPDIR=${TEMPDIR:-"$(basename ${INFILE})_TEMP"}
+TEMPDIR=${TEMPDIR:-"$(basename ${INFILE_DB})_TEMP"}
 HTML_FILE=${HTML_FILE:-""}
 FOLDSEEK_CLUSTER_MODE=${FOLDSEEK_CLUSTER_MODE:-0}
 COV_REQUIREMENT=${COV_REQUIREMENT:-0}
