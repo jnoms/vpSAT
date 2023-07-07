@@ -114,19 +114,19 @@ FOLDSEEK_COVERAGE_MODE=${FOLDSEEK_COVERAGE_MODE:-0}
 #------------------------------------------------------------------------------#
 # Validate inputs and program availablity
 #------------------------------------------------------------------------------#
-if [ $INFILE == "" ] && [ $INFILE_DB == "" ] ; then
+if [[ $INFILE == "" ]] && [[ $INFILE_DB == "" ]] ; then
     echo "--INFILE or --INFILE_DB must be set!"
     exit 1
-elif [ $INFILE != "" ] && [ $INFILE_DB  != "" ] ; then
+elif [[ $INFILE != "" ]] && [[ $INFILE_DB  != "" ]] ; then
     echo "Have detected that both --INFILE and --INFILE_DB are set."
     echo "Should just specify one of those."
     exit 1
 fi
 
-if [ $DATABASE == "" ] && [ $CLUSTER_FILE == "" ] ; then
+if [[ $DATABASE == "" ]] && [[ $CLUSTER_FILE == "" ]] ; then
     echo "--DATABASE or --CLUSTER_FILE must be set!"
     exit 1
-elif [ $DATABASE != "" ] && [ $CLUSTER_FILE != "" ] ; then
+elif [[ $DATABASE != "" ]] && [[ $CLUSTER_FILE != "" ]] ; then
     echo "Have detected that both --DATABASE and --CLUSTER_FILE are set."
     echo "Typically should just specify one of those, as if --CLUSTER_FILE is provided "
     echo "the INFILE will be used as both query and target."
@@ -134,11 +134,11 @@ elif [ $DATABASE != "" ] && [ $CLUSTER_FILE != "" ] ; then
 fi
 
 # Make sure all input files exist
-if [ $DATABASE != "" ] && [ ! -f $DATABASE ] ; then
+if [[ $DATABASE != "" ]] && [[ ! -f $DATABASE ]] ; then
     echo "Database, $DATABASE, not detected."
     exit 1
 fi
-if [ $INFILE_DB != "" ] && [ ! -f $INFILE_DB ] ; then
+if [[ $INFILE_DB != "" ]] && [[ ! -f $INFILE_DB ]] ; then
     echo "INFILE_DB, $INFILE_DB, not detected."
     exit 1
 fi
@@ -179,7 +179,7 @@ mkdir -p $(dirname $OUT_FILE)
 mkdir -p $TEMPDIR
 
 # Generate query database
-if [ $INFILE_DB != "" ] ; then 
+if [[ $INFILE_DB != "" ]] ; then 
     echo "$0: Query database is specified"
     QUERY=$INFILE_DB
 else
