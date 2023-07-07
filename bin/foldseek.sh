@@ -9,11 +9,18 @@ usage() {
         consisting of many other structures. 
 
         Required params:
-        -i --INFILE {pdb}
-            This can specify either a directory containing fastas or a single fasta.
+        
         -o --OUT_FILE {path}
             Path to the output file. This will be a tabular file (.m8 is a
             recommended file suffix for the tabular file).
+        
+        Either-or params:
+        -i --INFILE {pdb}
+            This can specify either a directory containing fastas or a single fasta.
+            Either specify -i or -D, not both!
+        -D --INFILE_DB
+            Path to the foldseek database to be used as the query. Either specify -D 
+            OR -i, not both!
 
         Either-or params:
         -d --DATABASE {database}
@@ -51,10 +58,6 @@ usage() {
             Options are 0, 1 and 2. Dictates how the coverage is calculated.
             0: coverage of query and target, 1: coverage of target, 2: coverage of query
 
-        -D --INFILE_IS_DB
-            Boolean flag.
-            If specified, will treat the INFILE as a pre-made query database made with
-            foldseek createdb. [NOTE - UNTESTED]
         -c --CLEAN_UP 
             Boolean flag.
             If specified, will delete the TEMPDIR.
@@ -68,15 +71,15 @@ if [ $# -le 4 ] ; then
 fi
 
 # Boolean flag defaults
-INFILE_IS_DB=false
 CLEAN_UP=false
 
 
 #Setting input
-while getopts i:o:d:C:f:t:e:T:H:m:v:M:Dc option ; do
+while getopts i:D:o:d:C:f:t:e:T:H:m:v:M:c option ; do
         case "${option}"
         in
                 i) INFILE=${OPTARG};;
+                D) INFILE_DB=${OPTARG};;
                 o) OUT_FILE=${OPTARG};;
                 d) DATABASE=${OPTARG};;
                 C) CLUSTER_FILE=${OPTARG};;
@@ -88,7 +91,6 @@ while getopts i:o:d:C:f:t:e:T:H:m:v:M:Dc option ; do
                 m) FOLDSEEK_CLUSTER_MODE=${OPTARG};;
                 v) COV_REQUIREMENT=${OPTARG};;
                 m) FOLDSEEK_COVERAGE_MODE=${OPTARG};;
-                D) INFILE_IS_DB=true;;
                 c) CLEAN_UP=true;;
         esac
 done
@@ -97,6 +99,7 @@ done
 # Set defaults and constants
 #------------------------------------------------------------------------------#
 # Defaults
+INFILE_DB=${INFILE_DB:-""}
 DATABASE=${DATABASE:-""}
 CLUSTER_FILE=${CLUSTER_FILE:-""}
 FIELDS=${FIELDS:-"query,target,fident,alnlen,qlen,tlen,mismatch,gapopen,qstart,qend,tstart,tend,evalue,bits,alntmscore"}
@@ -111,19 +114,32 @@ FOLDSEEK_COVERAGE_MODE=${FOLDSEEK_COVERAGE_MODE:-0}
 #------------------------------------------------------------------------------#
 # Validate inputs and program availablity
 #------------------------------------------------------------------------------#
-# Make sure all input files exist
-if [ -z $DATABASE ] && [ ! -f $DATABASE ] ; then
-    echo "Database, $DATABASE, not detected."
+if [ $INFILE == "" ] && [ $INFILE_DB == "" ] ; then
+    echo "--INFILE or --INFILE_DB must be set!"
+    exit 1
+elif [ $INFILE != "" ] && [ $INFILE_DB  != "" ] ; then
+    echo "Have detected that both --INFILE and --INFILE_DB are set."
+    echo "Should just specify one of those."
     exit 1
 fi
 
-if [ -z $DATABASE ] && [ -z $CLUSTER_FILE ] ; then
+if [ $DATABASE == "" ] && [ $CLUSTER_FILE == "" ] ; then
     echo "--DATABASE or --CLUSTER_FILE must be set!"
     exit 1
-elif [ ! -z $DATABASE ] && [ ! -z $CLUSTER_FILE ] ; then
+elif [ $DATABASE != "" ] && [ $CLUSTER_FILE != "" ] ; then
     echo "Have detected that both --DATABASE and --CLUSTER_FILE are set."
     echo "Typically should just specify one of those, as if --CLUSTER_FILE is provided "
     echo "the INFILE will be used as both query and target."
+    exit 1
+fi
+
+# Make sure all input files exist
+if [ $DATABASE != "" ] && [ ! -f $DATABASE ] ; then
+    echo "Database, $DATABASE, not detected."
+    exit 1
+fi
+if [ $INFILE_DB != "" ] && [ ! -f $INFILE_DB ] ; then
+    echo "INFILE_DB, $INFILE_DB, not detected."
     exit 1
 fi
 
@@ -141,6 +157,7 @@ echo "
 $0 inputs:
 
 INFILE: $INFILE
+INFILE_DB: $INFILE_DB
 OUT_FILE: $OUT_FILE
 DATABASE: $DATABASE
 CLUSTER_FILE: $CLUSTER_FILE
@@ -152,7 +169,6 @@ HTML_FILE: $HTML_FILE
 FOLDSEEK_CLUSTER_MODE: $FOLDSEEK_CLUSTER_MODE
 COV_REQUIREMENT: $COV_REQUIREMENT
 FOLDSEEK_COVERAGE_MODE: $FOLDSEEK_COVERAGE_MODE
-INFILE_IS_DB: $INFILE_IS_DB
 CLEAN_UP: $CLEAN_UP
 "
 
@@ -163,26 +179,27 @@ mkdir -p $(dirname $OUT_FILE)
 mkdir -p $TEMPDIR
 
 # Generate query database
-if $INFILE_IS_DB ; then 
-    echo "$0: INFILE specified as a foldseek database."
-    ln -s $INFILE ${TEMPDIR}/queryDB
+if [ $INFILE_DB != "" ] ; then 
+    echo "$0: Query database is specified"
+    QUERY=$INFILE_DB
 else
     echo "$0: Making query database"
     foldseek createdb \
         $INFILE \
         ${TEMPDIR}/queryDB \
         --threads $THREADS
+    QUERY=${TEMPDIR}/queryDB
 fi
 
 # If this is a cluster job, specify DATABASE as the query database.
 if [[ $CLUSTER_FILE != "" ]] ; then 
-    DATABASE=${TEMPDIR}/queryDB
+    DATABASE=$QUERY
 fi
 
 # Do the search
 echo "$0: Doing search."
 foldseek search \
-    ${TEMPDIR}/queryDB \
+    ${QUERY} \
     $DATABASE \
     ${TEMPDIR}/alignment_DB \
     ${TEMPDIR} \
