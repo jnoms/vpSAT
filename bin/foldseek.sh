@@ -105,12 +105,16 @@ CLUSTER_FILE=${CLUSTER_FILE:-""}
 FIELDS=${FIELDS:-"query,target,fident,alnlen,qlen,tlen,mismatch,gapopen,qstart,qend,tstart,tend,evalue,bits,alntmscore"}
 THREADS=${THREADS:-1}
 EVALUE=${EVALUE:-0.001}
-TEMPDIR=${TEMPDIR:-"$(basename ${INFILE})_TEMP"}
-TEMPDIR=${TEMPDIR:-"$(basename ${INFILE_DB})_TEMP"}
 HTML_FILE=${HTML_FILE:-""}
 FOLDSEEK_CLUSTER_MODE=${FOLDSEEK_CLUSTER_MODE:-0}
 COV_REQUIREMENT=${COV_REQUIREMENT:-0}
 FOLDSEEK_COVERAGE_MODE=${FOLDSEEK_COVERAGE_MODE:-0}
+
+if [[ $INFILE != "" ]] ; then
+    TEMPDIR=${TEMPDIR:-"$(basename ${INFILE})_TEMP"}
+elif [[ $INFILE_DB != "" ]] ; then
+    TEMPDIR=${TEMPDIR:-"$(basename ${INFILE_DB})_TEMP"}
+fi
 
 #------------------------------------------------------------------------------#
 # Validate inputs and program availablity
