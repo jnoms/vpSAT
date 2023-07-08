@@ -221,7 +221,7 @@ foldseek search \
 # Convert to tabular output
 echo "$0: Writing tabular output"
 foldseek convertalis \
-    ${TEMPDIR}/queryDB \
+    ${QUERY} \
     $DATABASE \
     ${TEMPDIR}/alignment_DB \
     $OUT_FILE \
@@ -234,14 +234,14 @@ if [[ $CLUSTER_FILE != "" ]] ; then
     echo "$0: Clustering"
     mkdir -p $(dirname $CLUSTER_FILE)
     foldseek clust \
-        ${TEMPDIR}/queryDB \
+        ${QUERY} \
         ${TEMPDIR}/alignment_DB \
         ${TEMPDIR}/clusterDB \
         --cluster-mode $FOLDSEEK_CLUSTER_MODE
 
     echo "$0: Writing cluster tsv file."
     foldseek createtsv \
-        ${TEMPDIR}/queryDB \
+        ${QUERY} \
         $DATABASE \
         ${TEMPDIR}/clusterDB \
         $CLUSTER_FILE
@@ -251,7 +251,7 @@ fi
 if [[ $HTML_FILE != "" ]] ; then
     echo "$0: Writing HTML output."
     foldseek convertalis \
-    ${TEMPDIR}/queryDB \
+    ${QUERY} \
     $DATABASE \
     ${TEMPDIR}/alignment_DB \
     $HTML_FILE \
