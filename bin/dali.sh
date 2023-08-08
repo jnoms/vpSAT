@@ -22,7 +22,8 @@ usage() {
             Path to the directory containing the targets. Must have one or more 
             previously-imported .dat files.
         -o --OUT_DIR {path}
-            Path to the directory containing the output alignment files.
+            Path to the directory containing the output alignment files. The output
+            file will be {query 4 digit identifier}A.txt, saved to this directory.
 
         Optional params:
         -f --OUTPUT_FORMAT {comma-delimited list} [summary,equivalences,transrot]
@@ -33,6 +34,13 @@ usage() {
         -s --SYMMETRY {oneway,twoway} ['oneway'] 
             Options are oneway or twoway. If oneway is specified, will use the --oneway
             switch. This is a substaintial speedup.
+        -n --THREADS {int} [1]
+            The number of threads to use. CRITICAL: If set to more than 1, will be using
+            MPI to handle the multithreading. On SGE, need to add #$ -pe mpi N (where N
+            is the number of THREADS/the value of this commandline option) and may also
+            need to module load mpi. mpirun is assumed to be at the path 
+            /usr/lib64/openmpi/bin/mpirun - if you want to adjust the mpi path, need
+            to make a commandline input for the --MPIRUN_EXE flag of dali.pl.
 
         Some additional details:
         - Because DALI hates when paths are above 60 or 80 characters, the query_dir and 
@@ -48,7 +56,7 @@ if [ $# -le 4 ] ; then
 fi
 
 #Setting input
-while getopts q:t:o:f:s: option ; do
+while getopts q:t:o:f:s:n: option ; do
         case "${option}"
         in
                 q) QUERY_DIR=${OPTARG};;
@@ -56,6 +64,7 @@ while getopts q:t:o:f:s: option ; do
                 o) OUT_DIR=${OPTARG};;
                 f) OUTPUT_FORMAT=${OPTARG};;
                 s) SYMMETRY=${OPTARG};;
+                n) THREADS=${OPTARG};;
         esac
 done
 
@@ -65,6 +74,7 @@ done
 # Defaults
 OUTPUT_FORMAT=${OUTPUT_FORMAT:-"summary,equivalences,transrot"}
 SYMMETRY=${SYMMETRY:-oneway}
+THREADS=${THREADS:-1}
 
 #------------------------------------------------------------------------------#
 # Validate inputs and program availablity
@@ -83,6 +93,14 @@ else
     exit 1
 fi
 
+if [[ $THREADS != 1 ]] ; then
+    if ! command -v /usr/lib64/openmpi/bin/mpirun ; then
+        echo "You are attempting to multithread, but "
+        echo "mpirun not detected at /usr/lib64/openmpi/bin/mpirun!"
+        exit 1
+    fi
+fi
+
 #------------------------------------------------------------------------------#
 # Main
 #------------------------------------------------------------------------------#
@@ -93,6 +111,7 @@ QUERY_DIR: $QUERY_DIR
 TARGET_DIR: $TARGET_DIR
 OUT_DIR: $OUT_DIR
 SYMMETRY_LINE: $SYMMETRY_LINE
+THREADS: $THREADS
 "
 
 echo "$0: Started at $(date)"
@@ -120,6 +139,7 @@ time dali.pl \
 --dat2 target_dir_symlink \
 --query lists/query_list.txt \
 --db lists/target_list.txt \
+--np $THREADS \
 --clean \
 $SYMMETRY_LINE \
 --outfmt $OUTPUT_FORMAT
