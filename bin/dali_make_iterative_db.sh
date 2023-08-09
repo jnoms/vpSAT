@@ -9,7 +9,8 @@ usage() {
         directory with .dat files, and a key converting 4 digit identifiers to original 
         file names) to an iterative db directory structure of the following format:
             ITERATIVE_DB_DIR/
-                copy_of_cluster_file.txt
+                cluster_file.txt <--- copy of the cluster
+                dat_file_key.txt <--- copy of the file key
                 reps/ <--- .dat files for all reps
                 clusters/
                     cluster_rep_1/ <--- all .dat files for this cluster (including rep)
@@ -87,8 +88,8 @@ echo "STAGE 1: Parsing cluster file"
 # Set up the output directory
 mkdir -p $ITERATIVE_DB_DIR/reps
 mkdir -p $ITERATIVE_DB_DIR/clusters
-cp $CLUSTER_FILE $ITERATIVE_DB_DIR
-cp $DAT_FILE_KEY dat_file_key.txt
+cp $CLUSTER_FILE $ITERATIVE_DB_DIR/cluster_file.txt
+cp $DAT_FILE_KEY $ITERATIVE_DB_DIR/dat_file_key.txt
 echo "" > $ITERATIVE_DB_DIR/seen.txt
 
 # Parse the cluster file. First, check if the cluster file has colnames. If so, use those colnames to find
