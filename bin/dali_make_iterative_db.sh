@@ -88,7 +88,7 @@ echo "STAGE 1: Parsing cluster file"
 mkdir -p $ITERATIVE_DB_DIR/reps
 mkdir -p $ITERATIVE_DB_DIR/clusters
 cp $CLUSTER_FILE $ITERATIVE_DB_DIR
-cp $DAT_FILE_KEY $ITERATIVE_DB_DIR
+cp $DAT_FILE_KEY dat_file_key.txt
 echo "" > $ITERATIVE_DB_DIR/seen.txt
 
 # Parse the cluster file. First, check if the cluster file has colnames. If so, use those colnames to find
