@@ -103,7 +103,7 @@ fi
 if [[ $PATH_TO_DALI_SCRIPT == "" ]] ; then
     echo "PATH_TO_DALI_SCRIPT is required!"
     exit 1
-done
+fi
 
 #------------------------------------------------------------------------------#
 # Main
