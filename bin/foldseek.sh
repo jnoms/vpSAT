@@ -147,7 +147,7 @@ if [[ $INFILE_DB != "" ]] && [[ ! -f $INFILE_DB ]] ; then
     echo "INFILE_DB, $INFILE_DB, not detected."
     exit 1
 fi
-if [[ $INFILE != "" ]] && [[ ! -f $INFILE ]] ; then
+if [[ $INFILE != "" ]] && [[ ! -d $INFILE ]] ; then
     echo "INFILE, $INFILE, not detected."
     exit 1
 fi
