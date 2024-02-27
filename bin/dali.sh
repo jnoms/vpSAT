@@ -41,6 +41,8 @@ usage() {
             need to module load mpi. mpirun is assumed to be at the path 
             /usr/lib64/openmpi/bin/mpirun - if you want to adjust the mpi path, need
             to make a commandline input for the --MPIRUN_EXE flag of dali.pl.
+        -d --DALI_EXE {path} [dali.pl]
+            Path to the dali.pl executable. Default assumes it is in your path.
 
         Some additional details:
         - Because DALI hates when paths are above 60 or 80 characters, the query_dir and 
@@ -56,7 +58,7 @@ if [ $# -le 4 ] ; then
 fi
 
 #Setting input
-while getopts q:t:o:f:s:n: option ; do
+while getopts q:t:o:f:s:n:d: option ; do
         case "${option}"
         in
                 q) QUERY_DIR=${OPTARG};;
@@ -65,6 +67,7 @@ while getopts q:t:o:f:s:n: option ; do
                 f) OUTPUT_FORMAT=${OPTARG};;
                 s) SYMMETRY=${OPTARG};;
                 n) THREADS=${OPTARG};;
+                d) DALI_EXE=${OPTARG};;
         esac
 done
 
@@ -75,11 +78,12 @@ done
 OUTPUT_FORMAT=${OUTPUT_FORMAT:-"summary,equivalences,transrot"}
 SYMMETRY=${SYMMETRY:-oneway}
 THREADS=${THREADS:-1}
+DALI_EXE=${DALI_EXE:-dali.pl}
 
 #------------------------------------------------------------------------------#
 # Validate inputs and program availablity
 #------------------------------------------------------------------------------#
-if ! command -v dali.pl ; then
+if ! command -v $DALI_EXE ; then
     echo "dali.pl not detected!"
     exit 1
 fi
@@ -134,7 +138,7 @@ ls $TEMP/target_dir_symlink | awk -F . '{print $1}'  > $TEMP/lists/target_list.t
 # Run DALI. Will also capture exicution time. I move into the TEMP directory to run it
 # to avoid LOCK files blocking things, and to organize the output .txt files.
 cd $TEMP
-time dali.pl \
+time $DALI_EXE \
 --dat1 query_dir_symlink \
 --dat2 target_dir_symlink \
 --query lists/query_list.txt \
