@@ -131,7 +131,7 @@ done
 
 # Iterate over all inputs
 COUNT=1
-for CURRENT_STRUCTURE in $INPUT_DIR/*pdb* ; do 
+for CURRENT_STRUCTURE in $INPUT_DIR/*pdb ; do 
     CURRENT_STRUCTURE=$(realpath ${CURRENT_STRUCTURE})
     CURRENT_STRUCTURE_BASE=$(basename $CURRENT_STRUCTURE)
     
