@@ -1,0 +1,151 @@
+---
+title: "tcdb"
+format: html
+---
+
+
+# Load packages
+```{r, include=F}
+library(tidyverse)
+library(ggpointdensity)
+library(hash)
+library(pheatmap)
+library(RColorBrewer)
+library(viridis)
+library(stringr) # for searching strtings for patterns eg str_count("1,2,3", ',') --> 2
+library(patchwork)
+library(svglite)
+
+library(pheatmap)
+
+library(igraph)
+library(ggraph)
+```
+
+# Load associated code and data
+```{r, include=F}
+source("constants.R")
+source("general_functions.R")
+source("load_data.R")
+```
+
+
+# Formatting output file
+```{r}
+# set.seed(0)
+# 
+# tcdb <- read_tsv("inputs/tcdb_analysis/pdb.txt", col_names = c("PDB", "TCDB_ID", "Classification"))
+# 
+# 
+# tcdb %>%
+#   distinct() %>%
+#   
+#   # Weird, wonky, truncated
+#   filter(PDB != "1HXI") %>%
+#   
+#   group_by(Classification) %>%
+#   mutate(n = row_number()) %>%
+#   ungroup() %>%
+#   filter(n <= 5) %>%
+#   select(-n) %>%
+#   write_tsv("outputs/tcdb_5_per_type.tsv")
+```
+
+
+# Reading in data for analysis
+```{r}
+tcdb <- read_tsv("inputs/tcdb_analysis/tcdb_5_per_type.tsv")
+db_list <- read_tsv("inputs/tcdb_analysis/db_list.txt", col_names="PDB") %>%
+  mutate(PDB = substr(PDB, 1, 4)) %>%
+  distinct() %>%
+  pull(PDB)
+tcdb_dali <- read_tsv("inputs/tcdb_analysis/BMRF.m8") %>%
+  select(-query, -target)
+
+
+
+# Remove the redundant classifications - just picking one randomly
+tcdb <- tcdb %>%
+  group_by(PDB) %>%
+  mutate(n = row_number()) %>%
+  filter(n == 1) %>%
+  select(-n)
+
+
+tcdb_classification_hash <- hash(tcdb$PDB, tcdb$Classification)
+
+
+
+# Stats for methods
+tcdb %>%
+  ungroup() %>%
+  filter(PDB %in% db_list) %>%
+  count(Classification) %>%
+  summarize(avg = mean(n))
+
+tcdb %>%
+  count(PDB) %>%
+  filter(n != 1)
+```
+
+# 
+```{r}
+tcdb_dali_nochains <- tcdb_dali %>%
+  
+  # Handle multiple chains
+  #--#
+  # Remove the chain information. Keep the max z value for each chain
+  mutate(target_id = substr(target_id, 1, 4)) %>%
+  group_by(target_id) %>%
+  filter(z == max(z)) %>%
+  rename(PDB = target_id)
+
+
+
+
+
+to_highlight <- c("The Equilibrative Nucleoside Transporter (ENT) Family", "The Proton-dependent Oligopeptide Transporter (POT/PTR) Family", "The Ferroportin (Fpn) Family", "The Major Facilitator Superfamily (MFS)")
+colors <- c(
+  "The Equilibrative Nucleoside Transporter (ENT) Family" = "#ffb703",
+  "The Proton-dependent Oligopeptide Transporter (POT/PTR) Family" = "#c1121f",
+  "The Ferroportin (Fpn) Family" = "#2a9d8f",
+  "The Major Facilitator Superfamily (MFS)" = "#ff8fab",
+  "Other" = "grey"
+  )
+
+tcdb_plt <- tcdb_dali_nochains %>%
+  mutate(c = hash_lookup(tcdb_classification_hash, PDB)) %>%
+  
+  # Handle the 4 ENTs from AFDB
+  mutate(c = ifelse(grepl("ENT", PDB), "The Equilibrative Nucleoside Transporter (ENT) Family", c)) %>%
+  
+  # ENT1 and ENT2 are already there with experimental structures. Remove the AFDB ones.
+  filter(! PDB %in% c("ENT1", "ENT2")) %>%
+  
+  mutate(highlight = ifelse(c %in% to_highlight, c, "Other")) %>%
+  
+  ggplot() +
+  
+  geom_jitter(
+    aes(x=rmsd, y=z, color=highlight)
+  ) +
+  
+  theme_classic() +
+  xlab("RMSD (Å)") +
+  ylab("Z") +
+  scale_color_manual(values=colors,
+                     labels=to_highlight,
+                     breaks=to_highlight) +
+  labs(color = "TCDB Classification")
+  
+
+ggsave("figs/separate/tcdb_plt.png", tcdb_plt, width=6, height=5, units="in")
+ggsave("figs/separate/tcdb_plt_no_legend.png", tcdb_plt + theme(legend.position = "none"), width=3, height=5, units="in")
+
+```
+
+
+
+
+
+

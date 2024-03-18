@@ -1,0 +1,441 @@
+---
+title: "figS1"
+format: html
+---
+
+# Load packages
+```{r, include=F}
+library(tidyverse)
+library(ggpointdensity)
+library(hash)
+library(pheatmap)
+library(RColorBrewer)
+library(viridis)
+library(stringr) # for searching strtings for patterns eg str_count("1,2,3", ',') --> 2
+library(patchwork)
+library(svglite)
+
+library(pheatmap)
+
+library(igraph)
+library(ggraph)
+```
+
+# Load associated code and data
+```{r, include=F}
+source("constants.R")
+source("general_functions.R")
+source("load_data.R")
+```
+
+
+# Plot # clusters by average family genome length
+```{r}
+# This is clusters per species
+#-----------------------------------------------#
+molecule_species_counts <- counts %>%
+  filter(superkingdom == "Viruses", level=="species") %>%
+  
+  # Count # cluster_IDs per species
+  group_by(taxon) %>%
+  summarise(cluster_count = n()) %>%
+  
+  # Find family for each species
+  mutate(family = hash_lookup(species_to_family_hash, taxon)) %>%
+  mutate(family = ifelse(is.na(family), "X", family)) %>%
+  
+  # Convert family to genome type
+  mutate(genome_type = hash_lookup(genome_types_hash, family)) %>%
+  mutate(genome_type = ifelse(family == "X", "Unassigned Family", genome_type)) %>%
+  mutate(molecule_type = ifelse(grepl("DNA", genome_type), "DNA", "RNA")) %>%
+  mutate(molecule_type = ifelse(family == "X", "Unassigned Family", molecule_type)) %>%
+  mutate(genome_type = factor(genome_type, ordered=T, levels=c("Unassigned Family", genome_type_order)))
+
+
+
+
+
+
+molecule_species_counts_w_fam_avg_size <- molecule_species_counts %>%
+  mutate(family_avg_genome_size = hash_lookup(fam_genome_size_means_hash, family)) %>%
+  filter(!is.na(family_avg_genome_size), !is.na(family)) 
+
+
+species_count_vs_fam_size_test <- cor.test(
+  molecule_species_counts_w_fam_avg_size$cluster_count, molecule_species_counts_w_fam_avg_size$family_avg_genome_size,
+  method = "spearman"
+  )
+
+rho <- as.numeric(species_count_vs_fam_size_test$estimate)
+rho_label <-  paste("Spearmans Rho: ", round(rho,2), sep="")
+
+p <- species_count_vs_fam_size_test$p.value
+p_label <- paste("P=", round_sci(p), sep="")
+
+  
+genome_size_vs_cluster_count_plt <- molecule_species_counts_w_fam_avg_size %>%
+  ggplot() + 
+  
+  geom_point(
+    aes(x=family_avg_genome_size, y = cluster_count, color=genome_type)
+  ) +
+  scale_x_continuous(trans="log10") +
+  scale_y_continuous(trans="log10") +
+  annotate("text", x=2300, y=300, label = rho_label, size=2, hjust=0) +
+  annotate("text", x=2300, y=200, label = p_label, size=2, hjust=0) +
+  theme_classic(base_size = 10) +
+  xlab("Average Genome Size In Viral Family") +
+  ylab("Number of Protein Clusters\nIn Viral Species") +
+  scale_color_manual(values = genome_type_colors) +
+  theme(panel.grid.minor = element_blank()) +
+  guides(color=guide_legend(title="Genome Type"))
+
+genome_size_vs_cluster_count_plt
+
+#ggsave("figs/separate/genome_size_vs_cluster_count_plt.png", genome_size_vs_cluster_count_plt, width=7, height=5)
+```
+
+# Distribution of alignment TMscores
+```{r}
+
+median_alntmscore <- foldseek_aln %>%
+  filter(query != target) %>%
+  pull(alntmscore) %>%
+  median()
+
+median_label <-  paste("Median: ", round(median_alntmscore, 2), sep="")
+
+alntmscore_distribution_plt <- foldseek_aln %>%
+  filter(query != target) %>%
+  
+  ggplot() +
+  
+  stat_density(
+    aes(x=alntmscore)
+  ) +
+  geom_vline(xintercept = median_alntmscore,
+             linetype = "dashed") +
+  annotate("text", x = median_alntmscore + 0.01, y=4, label = median_label, vjust=0, hjust=0) +
+  theme_classic() +
+  xlab("Foldseek Alignment TMscore") +
+  ylab("Density")
+
+alntmscore_distribution_plt
+
+
+
+foldseek_aln %>%
+  filter(query != target) %>%
+  ggplot() +
+  stat_density(
+    aes(x=evalue)
+  )
+
+
+foldseek_aln %>%
+  filter(query != target) %>%
+  pull(evalue) %>%
+  max() # worst e-value is 0.0009, so all are less than 0.001
+```
+
+# Cluster size distribution
+```{r}
+# clusters %>%
+#   mutate(cluster_count = as.numeric(cluster_count)) %>%
+#   select(cluster_ID, cluster_count) %>%
+#   distinct() %>%
+#   filter(cluster_count >1) %>%
+#   
+#   ggplot() +
+#   
+#   stat_density(
+#     aes(x=cluster_count)
+#   ) +
+#   scale_x_continuous(trans="log10")
+  
+
+
+
+
+cluster_size_dist_plt <- clusters %>%
+  mutate(cluster_count = as.numeric(cluster_count)) %>%
+  select(cluster_ID, cluster_count) %>%
+  distinct() %>%
+  mutate(category = case_when(
+    cluster_count == 1 ~ "Single\nMember",
+    cluster_count > 1 & cluster_count <= 10 ~ "2-10",
+    cluster_count > 10 & cluster_count <= 100 ~ "11-100",
+    cluster_count > 100 & cluster_count <= 1000 ~ "101-1000",
+    cluster_count > 1000 ~ ">1000"
+  )) %>%
+  group_by(category) %>%
+  summarize(count = n()) %>%
+  mutate(category = factor(category, ordered=T, levels=rev(.$category))) %>%
+  ungroup() %>%
+  
+  rowwise() %>%
+  mutate(label = round_to_k(count)) %>%
+  ungroup() %>%
+  
+  ggplot() +
+  
+  geom_col(
+    aes(x=category, y = count)
+  ) +
+  geom_text(
+    aes(x=category, y = count*1.3, label = label)
+  ) +
+  
+  scale_y_continuous(trans="log10") +
+  xlab("Number of Cluster Members") +
+  ylab("Number of Clusters") +
+  theme_classic(base_size=7)
+
+cluster_size_dist_plt
+
+
+```
+
+
+
+# Family network
+```{r}
+cmap_filt <- cmap %>%
+  filter(count > 1) %>%
+  mutate(f1_type = hash_lookup(genome_types_hash, f1),
+         f2_type = hash_lookup(genome_types_hash, f2)) %>%
+  rename(Jaccard = jaccard)
+
+# Add a new column for count category
+cmap_filt <- cmap_filt %>%
+  mutate(count_category = case_when(
+    count >= 2 & count <= 3 ~ "2-3",
+    count > 3 & count <= 10 ~ "4-10",
+    count > 10 & count <= 20 ~ "10-20",
+    count > 20  ~ ">20",
+    TRUE ~ "Other"  # This will catch any out of range values, can be omitted if not needed
+  ))
+
+cmap_filt$count_category <- factor(
+  cmap_filt$count_category, 
+  levels=c("2-3", "4-10", "10-20", ">20", "Other")
+)
+
+graph <- graph_from_data_frame(cmap_filt, directed = FALSE)
+
+node_colors <- rbind(
+  cmap_filt %>%
+    select(f1, f1_type) %>%
+    rename(f = f1, type = f1_type),
+  cmap_filt %>%
+    select(f2, f2_type) %>%
+    rename(f = f2, type = f2_type)
+) 
+
+V(graph)$color <- node_colors$type[match(V(graph)$name, node_colors$f)]
+edge_colors <- cmap_filt$count_category[match(E(graph)$name, cmap_filt$f1)]
+
+
+
+
+family_cluster_sharing_network_plt <- ggraph(graph, layout = "fr") + 
+  geom_edge_link(aes(color = count_category), size=1, alpha=0.8) +
+  geom_node_point(aes(shape = color), size = 3) + 
+  #geom_node_text(aes(label = name), vjust = 1.8, size=2) +
+  theme_minimal() +
+  theme(panel.grid = element_blank(),
+        axis.text = element_blank(),
+        axis.title = element_blank(),
+        #legend.key.width = unit(2, "lines")
+        ) +
+  scale_edge_color_manual(values=c(
+    "2-3" = "#E26D5A", 
+    "4-10" = "#DAFFED", 
+    "10-20" = "#A8DADC", 
+    ">20" = "#1D3557"),
+    breaks=c("2-3", "4-10", "10-20", ">20"),
+    name = "Shared Clusters"
+  ) +
+  scale_shape_manual(values = genome_type_shapes) + 
+  guides(shape=guide_legend(title="Genome Type"),
+         color = guide_legend(override.aes = list(size = 5)))
+
+
+
+family_cluster_sharing_network_NOLEGEND_plt <- ggraph(graph, layout = "fr") + 
+  geom_edge_link(aes(color = count_category), size=1, alpha=0.8) +
+  geom_node_point(aes(shape = color), size = 3) + 
+  #geom_node_text(aes(label = name), vjust = 1.8, size=2) +
+  theme_minimal() +
+  theme(panel.grid = element_blank(),
+        axis.text = element_blank(),
+        axis.title = element_blank(),
+        legend.position = "none",
+        panel.border = element_rect(colour = "black", fill=NA, size=1)
+        ) +
+  scale_edge_color_manual(values=c(
+    "2-3" = "#E26D5A", 
+    "4-10" = "#DAFFED", 
+    "10-20" = "#A8DADC", 
+    ">20" = "#1D3557"),
+    breaks=c("2-3", "4-10", "10-20", ">20"),
+    name = "Shared Clusters"
+  ) +
+  scale_shape_manual(values = genome_type_shapes)
+
+
+family_cluster_sharing_network_plt
+
+ggsave("figs/separate/family_cluster_sharing_network_plt.png", family_cluster_sharing_network_plt, height=15, width=20, units="cm")
+```
+
+# Cluster purity
+```{r}
+purity <- read_tsv("inputs/dali_cluster_purity.m8") %>%
+  filter(query != "query") %>%
+  mutate(alnlen = as.numeric(alnlen), tlen=as.numeric(tlen), pident=as.numeric(pident), z=as.numeric(z), rmsd=as.numeric(rmsd)) %>%
+  mutate(query = str_replace_all(query, ".pdb", "")) %>%
+  mutate(target = str_replace_all(target, ".pdb", ""))
+
+
+# Filter those with average member length < 150
+purity_inclusion_list <- purity %>%
+  group_by(query) %>%
+  summarize(avg_len = mean(tlen)) %>%
+  filter(avg_len > 150) %>%
+  pull(query)
+purity <- purity %>%
+  filter(query %in% purity_inclusion_list) %>%
+  rename(structure_rep = query,
+         cluster_member = target)
+
+# Get median of Z-means
+median_of_z_means <- clusters %>%
+  filter(structure_rep %in% purity_inclusion_list) %>%
+  select(cluster_ID, structure_rep, cluster_member) %>%
+  left_join(purity, by=c("structure_rep", "cluster_member")) %>%
+  
+  # Not observed == Z of 0
+  mutate(z = ifelse(is.na(z), 0, z)) %>%
+  
+  group_by(structure_rep) %>%
+
+  summarize(z_mean = mean(z)) %>%
+  pull(z_mean) %>%
+  median()
+
+median_label <- paste("Median: ", round(median_of_z_means, 2), sep="")
+
+
+purity_plt <- clusters %>%
+  filter(structure_rep %in% purity_inclusion_list) %>%
+  select(cluster_ID, structure_rep, cluster_member) %>%
+  left_join(purity, by=c("structure_rep", "cluster_member")) %>%
+  
+  # Not observed == Z of 0
+  mutate(z = ifelse(is.na(z), 0, z)) %>%
+  
+  group_by(structure_rep) %>%
+
+  summarize(z_mean = mean(z)) %>%
+  
+  ggplot() +
+  
+  stat_density(
+    aes(x=z_mean)
+  ) +
+  geom_vline(xintercept = median_of_z_means, linetype="dashed") +
+  annotate("text", x=median_of_z_means+ 1, y = 0.06, label = median_label, hjust=0) +
+  
+  theme_classic() +
+  xlab("Average DALI Z Between\nCluster Rep and Members") +
+  ylab("Density")
+
+purity_plt
+
+```
+
+# Agg
+```{r}
+top <-  alntmscore_distribution_plt | cluster_size_dist_plt | purity_plt 
+
+bottom <- genome_size_vs_cluster_count_plt + family_cluster_sharing_network_NOLEGEND_plt +
+  plot_layout(widths=c(0.3, 1))
+
+fig <- top / bottom
+
+ggsave("figs/agg/Sfig1_stats.png", fig, width=25, height=15, units="cm") 
+```
+
+
+# highlight top 10 clusters
+```{r}
+taxonomy_level_colors <- c(
+  "species" = "#B3CDE3",      # Light blue
+  "genus" = "#8C96C6",        # Light-medium blue
+  "family" = "#8856A7",       # Medium blue
+  "order" = "#810F7C",        # Medium-dark blue
+  "class" = "#4D004B",        # Dark blue
+  "phylum" = "#2B0057",       # Darker blue
+  "superkingdom" = "#000033"  # Darkest blue
+)
+
+top_10_clusters_plt <- clusters %>%
+  group_by(cluster_ID) %>%
+  summarize(
+    phylum = n_distinct(phylum),
+    class = n_distinct(class),
+    order = n_distinct(order),
+    family = n_distinct(family),
+    genus = n_distinct(genus),
+    species = n_distinct(species)
+  ) %>%
+  arrange(-phylum, -class, -order, -family, -genus, -species) %>%
+  mutate(cluster_ID = factor(cluster_ID, ordered=T, levels=.$cluster_ID)) %>%
+  
+  ungroup() %>%
+  head(10) %>%
+  pivot_longer(-cluster_ID) %>%
+  rename(n = value,
+         level = name) %>%
+  
+  mutate(level = factor(level, ordered=T, levels=c("phylum", "class", "order", "family", "genus", "species")))  %>%
+  
+  ggplot() +
+  
+  geom_col(
+    aes(x=cluster_ID, y=n, fill=level),
+    position = "dodge"
+  ) +
+  geom_hline(yintercept = c(10, 100, 1000), linetype="dashed", color="grey") +
+  geom_text(
+    data=tibble(y=c(10, 100, 1000)),
+    aes(x = 10, y=y*1.3, label=y),
+    angle=10
+  ) +
+  
+  scale_y_continuous(trans="log10") +
+  coord_polar() +
+  theme_minimal() +
+  theme(panel.grid = element_blank(),
+        axis.text.y = element_blank(),
+        axis.title = element_blank(),
+        legend.position = "none"
+        ) +
+  scale_fill_manual(values = taxonomy_level_colors)
+
+top_10_clusters_plt
+ggsave("figs/separate/top_10_clusters_plt.png", top_10_clusters_plt, width=10, height=10, units="cm")
+```
+
+
+
+
+
+
+
+
+
+
+
+

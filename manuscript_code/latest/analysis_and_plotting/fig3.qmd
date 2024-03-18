@@ -1,0 +1,349 @@
+---
+title: "fig3"
+format: html
+---
+
+# Load packages
+```{r, include=F}
+library(tidyverse)
+library(ggpointdensity)
+library(hash)
+library(pheatmap)
+library(RColorBrewer)
+library(viridis)
+library(stringr) # for searching strtings for patterns eg str_count("1,2,3", ',') --> 2
+library(patchwork)
+library(svglite)
+
+library(pheatmap)
+
+library(igraph)
+library(ggraph)
+```
+
+# Load associated code and data
+```{r, include=F}
+source("constants.R")
+source("general_functions.R")
+source("load_data.R")
+```
+
+```{r}
+af2 <- read_tsv("inputs/full_euk_vs_af2db.filt.tax.m8")
+
+
+# AF2 included the multi PART (split) proteins - I need to remove those from consideration
+pr_list <- clusters %>%
+  pull(cluster_member) %>%
+  paste(., ".pdb", sep="")
+
+af2 <- af2 %>%
+  filter(query %in% pr_list)
+
+
+
+```
+
+# TMscore vs fident
+```{r}
+virus_vs_af2_plt <- af2 %>%
+  group_by(query) %>%
+  top_n(5, alntmscore) %>%
+  ggplot() + 
+    
+    geom_pointdensity(
+      aes(
+        x = alntmscore,
+        y = fident,
+        )
+    ) +
+    geom_vline(
+      xintercept = 0.4,
+      linetype="dashed"
+    ) + 
+    ylab("Amino Acid\nPercentage Identity") +
+    xlab("Structure Alignment TMscore") +
+    theme_classic(base_size = 10) +
+    theme(
+          legend.position = "none",
+          legend.background = element_rect(fill="white")
+          ) +
+    coord_cartesian(xlim=c(1, 0), ylim=c(0, 1)) +
+    guides(color=guide_legend(title="Number of\nnearby points")) +
+    scale_y_continuous(breaks=c(0, 0.5, 1), labels=c(0, 0.5, 1)) +
+    scale_x_continuous(breaks=c(0, 0.5, 1), labels=c(0, 0.5, 1), trans="reverse", expand=c(0,0))
+
+virus_vs_af2_plt
+```
+
+
+
+
+
+# upset plot
+```{r}
+library(UpSetR)
+
+af2_mapped_list <- af2 %>%
+  pull(query) %>%
+  unique() %>%
+  str_replace_all(".pdb", "")
+
+bact <- af2 %>%
+  filter(target_superkingdom == "Bacteria") %>%
+  select(query) %>%
+  distinct() %>%
+  pull(query)
+
+euk <- af2 %>%
+  filter(target_superkingdom == "Eukaryota") %>%
+  select(query) %>%
+  distinct() %>%
+  pull(query)
+
+arch <- af2 %>%
+  filter(target_superkingdom == "Archaea") %>%
+  select(query) %>%
+  distinct() %>%
+  pull(query)
+
+list_of_sets <- list("Bacteria" = bact, "Eukaryota" = euk, "Archaea" = arch)
+cross_kingdom_upset_plt <- upset(
+  fromList(list_of_sets),
+  order.by = "freq",
+  text.scale = c(2, 2, 2, 1.5, 2, 2),
+  main.bar.color = "#3e5c76",
+  line.size =0
+  )
+cross_kingdom_upset_plt
+
+# Save the upset plot
+png(filename = "figs/separate/cross_kingdom_upset_plt.png", width = 800, height = 600, res = 100)
+cross_kingdom_upset_plt
+dev.off()
+
+
+?upset
+```
+
+# pie chart showing proportion of proteins with AF2 alignment
+```{r}
+
+af2_aligned_proportion_pie_plt <- clusters %>%
+  mutate(alignment = ifelse(cluster_member %in% af2_mapped_list, "Aligned", "Not Aligned")) %>%
+  count(alignment) %>%
+
+  ggplot() +
+  geom_bar(
+    aes(x = "", y = n, fill = alignment),
+    stat = "identity", width = 1,
+    show.legend = F
+  ) +
+  coord_polar(theta = "y") +
+  theme_void() +
+  scale_fill_manual(
+    values = c("Aligned" = "#3e5c76", "Not Aligned" = "grey")
+  )
+af2_aligned_proportion_pie_plt
+ggsave("figs/separate/af2_aligned_proportion_pie_plt.png", af2_aligned_proportion_pie_plt)
+
+
+clusters %>%
+  mutate(alignment = ifelse(cluster_member %in% af2_mapped_list, "Aligned", "Not Aligned")) %>%
+  count(alignment)
+
+
+
+```
+
+
+# Pre-processing DALI alignments
+```{r}
+dali_nf <- read_delim("inputs/new_functions_dali.tax.m8") %>%
+  mutate(z = as.numeric(z),
+         pident = as.numeric(pident)) %>%
+  select(-c("query_superkingdom", "query_phylum", "query_class", "query_order", "query_family", "query_genus", "query_species"))
+
+
+highlight_list <- c("ORF58__YP_001129415__Human_gammaherpesvirus_8__37296.pdb", "envelope_protein_UL43__YP_401658__Human_gammaherpesvirus_4__10376.pdb", "envelope_protein_UL43__NP_040138__Human_alphaherpesvirus_3__10335.pdb", "IMV_heparin_binding_surface_protein__YP_232983__Vaccinia_virus__10245.pdb", "hypothetical_protein_VARVgp086__NP_042130__Variola_virus__10255.pdb", "ORF114_hypothetical_protein__NP_957891__Orf_virus__10258.pdb", "151R_protein__NP_073536__Yaba-like_disease_virus__132475.pdb", "hypothetical_protein_VACWR024__YP_232906__Vaccinia_virus__10245.pdb",
+                    "HSPV169__ABH08278__Horsepox_virus__397342.pdb")
+dali_nf <- dali_nf %>%
+  
+  # will color by family - but those with non-specific alignments (Z < 10)
+  # should be grey/"non-specific"
+  mutate(family = case_when(
+    target_genus == "Pandoravirus" ~ "Pandoravirus",
+    !is.na(target_family) ~ target_family,
+    is.na(target_family) ~ "Unassigned Family"
+  )) %>%
+  
+  mutate(family = ifelse(z < 10, "Non-specific", family)) %>%
+  mutate(family = ifelse(!family %in% c("Non-specific", "Poxviridae", "Herpesviridae", "Phycodnaviridae"), "Other", family)) %>%
+  mutate(family = factor(family, ordered=T, levels=c("Herpesviridae", "Poxviridae", "Phycodnaviridae", "Other", "Non-specific"))) %>%
+  
+  
+  # Shape to highlight
+  mutate(highlight = ifelse(target %in% highlight_list, "Highlight", "other")) %>%
+  
+  # Replace AF names with more readable names
+  mutate(query = case_when(
+    query == "AF-Q7RTT9-F1-model_v4.pdb" ~ "ENT4",
+    query == "AF-Q8NBJ5-F1-model_v4.pdb" ~ "COLGALT1",
+    query == "AF-P57764-F1-model_v4.pdb" ~ "GASD",
+    query == "AF-Q54K28-F1-model_v4.pdb" ~ "Dioxygenase"
+  ))
+```
+
+# Function to plot the DALI results
+```{r}
+plot_dali <- function(tbl) {
+  tbl %>%
+    ggplot() +
+      
+      geom_point(
+        aes(x=z, y=pident, color=color, alpha=highlight, size=highlight, shape=highlight),
+        show.legend = F
+      ) +
+      
+      facet_wrap(~query, ncol=1) +
+      scale_color_manual(values = c("grey" = "grey", "red" = "#d93a36", "blue" = "#80a7a9", "orange" = "#ec874a")) +
+      scale_shape_manual(values = c("Highlight" = 18, "other" = 16)) +
+      scale_alpha_manual(values = c("Highlight" = 1, "other" = 0.4)) +
+      scale_size_manual(values = c("Highlight" = 5, "other" = 3)) +
+      guides(shape = F, alpha = F, size=F, color = guide_legend(title = "Family")) +
+      theme_classic() +
+      theme(panel.grid.minor = element_blank(),
+            legend.title.align = 0.5,
+            strip.background = element_blank()) +
+      xlab("DALI Z Score") + ylab("Percent Identity") +
+    coord_cartesian(ylim=c(0, 30)) +
+    scale_x_continuous(expand=c(0,0))
+
+  
+}
+
+```
+
+# Making individual DALI plots
+```{r}
+GASD_plt <- dali_nf %>%
+  filter(query == "GASD") %>%
+  mutate(color = case_when(
+    grepl("ABH08278", target) ~ "red",
+    grepl("YP_232983", target) ~ "orange",
+    grepl("NP_042130", target) ~ "blue",
+    grepl("YP_001129415", target) ~ "red",
+    grepl("NP_040138", target) ~ "blue",
+    grepl("YP_401658", target) ~ "orange",
+    grepl("NP_957891", target) ~ "red",
+    grepl("NP_042047", target) ~ "blue",
+  )) %>%
+  mutate(color = ifelse(is.na(color), "grey", color)) %>%
+  plot_dali()
+
+COLGALT1_plt <- dali_nf %>%
+  mutate(color = case_when(
+    grepl("ABH08278", target) ~ "red",
+    grepl("YP_232983", target) ~ "orange",
+    grepl("NP_042130", target) ~ "blue",
+    grepl("YP_001129415", target) ~ "red",
+    grepl("NP_040138", target) ~ "blue",
+    grepl("YP_401658", target) ~ "orange",
+    grepl("NP_957891", target) ~ "red",
+    grepl("NP_042047", target) ~ "blue",
+  )) %>%
+  mutate(color = ifelse(is.na(color), "grey", color)) %>%
+  filter(query == "COLGALT1") %>%
+  plot_dali()
+
+ENT4_plt <- dali_nf %>%
+  mutate(color = case_when(
+    grepl("ABH08278", target) ~ "red",
+    grepl("YP_232983", target) ~ "orange",
+    grepl("NP_042130", target) ~ "blue",
+    grepl("YP_001129415", target) ~ "red",
+    grepl("NP_040138", target) ~ "blue",
+    grepl("YP_401658", target) ~ "orange",
+    grepl("NP_957891", target) ~ "red",
+    grepl("NP_042047", target) ~ "blue",
+  )) %>%
+  mutate(color = ifelse(is.na(color), "grey", color)) %>%
+  filter(query == "ENT4") %>%
+
+  # There is alignments against some highlight/color from the other hits, need to override.
+  mutate(highlight = ifelse(target %in% c("IMV_heparin_binding_surface_protein__YP_232983__Vaccinia_virus__10245.pdb", "hypothetical_protein_VARVgp086__NP_042130__Variola_virus__10255.pdb"), "other" , highlight)) %>%
+  mutate(color = ifelse(target %in% c("IMV_heparin_binding_surface_protein__YP_232983__Vaccinia_virus__10245.pdb", "hypothetical_protein_VARVgp086__NP_042130__Variola_virus__10255.pdb"), "grey" , color)) %>%
+  
+  plot_dali()
+
+Dioxygenase_plt <- dali_nf %>%
+  filter(query == "Dioxygenase") %>%
+  mutate(color = case_when(
+    grepl("ABH08278", target) ~ "red",
+    grepl("YP_232983", target) ~ "orange",
+    grepl("NP_042130", target) ~ "blue",
+    grepl("YP_001129415", target) ~ "red",
+    grepl("NP_040138", target) ~ "blue",
+    grepl("YP_401658", target) ~ "orange",
+    grepl("NP_957891", target) ~ "red",
+    grepl("YP_232906", target) ~ "blue",
+  )) %>%
+  mutate(color = ifelse(is.na(color), "grey", color)) %>%
+  plot_dali()
+```
+
+
+# assemble
+```{r}
+top <- plot_spacer() + virus_vs_af2_plt + plot_spacer() + plot_layout(nrow=1)
+bottom <- GASD_plt + theme(axis.title.x = element_blank()) +
+  plot_spacer() +
+  COLGALT1_plt +theme(axis.title = element_blank()) +
+  plot_spacer() +
+  Dioxygenase_plt +
+  plot_spacer() +
+  ENT4_plt + theme(axis.title.y = element_blank()) +
+  plot_spacer() +
+  plot_layout(nrow=2, guides="collect")
+
+
+ggsave("figs/separate/new_functions_top.png", top, width=20, height = 8, units="cm")
+ggsave("figs/separate/new_functions_bottom.png", bottom, width=24, height = 13, units="cm")
+
+```
+
+
+
+# TMP
+```{r}
+dali_nf %>%
+  select(query) %>%
+  distinct()
+
+dali_nf %>%
+  filter(query == "Dioxygenase") %>%
+  filter(z >= 8) %>%
+  select(target_family) %>%
+  distinct() %>%
+  mutate(genome_type = hash_lookup(genome_types_hash, target_family))
+
+
+
+dali_nf %>%
+  filter(query == "Dioxygenase") %>%
+  filter(z >= 8) %>%
+  filter(target_family %in% c("Betaflexiviridae", "Potyviridae", "Closteroviridae", "Alphaflexiviridae")) %>%
+  filter(!grepl("PART", target))
+
+
+
+dali_nf %>%
+  filter(query == "ENT4") %>%
+  filter(z >= 8)
+
+
+
+clusters %>%
+  filter(cluster_ID == 131)
+```
+

@@ -1,0 +1,243 @@
+---
+title: "benchmarking"
+format: html
+---
+
+# Load packages
+```{r, include=F}
+library(tidyverse)
+library(ggpointdensity)
+library(hash)
+library(pheatmap)
+library(RColorBrewer)
+library(viridis)
+library(stringr) # for searching strtings for patterns eg str_count("1,2,3", ',') --> 2
+library(patchwork)
+library(svglite)
+
+library(pheatmap)
+
+library(igraph)
+library(ggraph)
+```
+
+# Load associated code and data
+```{r, include=F}
+source("constants.R")
+source("general_functions.R")
+source("load_data.R")
+```
+
+# Load benchmarking data
+# This is virus-virus
+```{r}
+mmseqs <- read_tsv("inputs/benchmarking/mmseqs_cluster_counts.tsv", col_names = c("cluster_ID", "cluster_count", "N_largest_cluster", "N_total")) %>%
+  mutate(source = "MMseqs2")
+
+diamond <- read_tsv("inputs/benchmarking/diamond_cluster_counts.tsv", col_names = c("cluster_ID", "cluster_count", "N_largest_cluster", "N_total")) %>%
+  mutate(source = "DIAMOND")
+
+jackhmmer <- read_tsv("inputs/benchmarking/jackhmmer_cluster_counts.tsv.tmp", col_names = c("cluster_ID", "cluster_count", "N_largest_cluster", "N_total")) %>%
+  mutate(source = "jackhmmer")
+
+seq_methods <- rbind(
+  mmseqs, 
+  diamond,
+  jackhmmer
+)
+```
+
+# Plot it
+```{r}
+
+method_colors <- c("MMseqs2 + Foldseek" = "#8ECAE6", "jackhmmer" = "#219EBC", "DIAMOND" = "#126782", "MMseqs2" = "#023047")
+
+
+
+
+n_clusters_plt <- seq_methods %>%
+  group_by(source) %>%
+  summarize(m = mean(cluster_count)) %>%
+  rbind(
+    tibble(
+      source = "MMseqs2 +\nFoldseek",
+      m = 1
+    )
+  ) %>%
+  arrange(m) %>%
+  mutate(source = factor(source, ordered=T, levels=.$source)) %>%
+  
+  ggplot() +
+  
+  geom_col(
+    aes(x = source, y = m, fill=source),
+    show.legend = F
+  ) +
+  
+  geom_hline(yintercept = 1, linetype="dashed") +
+  xlab("Method") +
+  ylab("Average Number of\nClusters Detected") +
+  scale_fill_manual(values = method_colors) +
+  theme_classic(base_size=14) +
+  scale_y_continuous(expand=c(0,0)) +
+  theme(axis.text.x = element_text(angle=40, hjust=1, color="black"))
+
+
+# P_largest_cluster
+p_largest_cluster_plt <- seq_methods %>%
+  mutate(P_largest_cluster = N_largest_cluster/N_total*100) %>%
+
+  ggplot() +
+  
+  stat_density(
+    aes(x=P_largest_cluster, fill=source)
+  ) +
+  
+  theme_classic(base_size=14) +
+  scale_x_continuous(expand = c(0,0), trans="reverse") +
+  scale_y_continuous(expand = c(0,0)) +
+  xlab("Percentage of Proteins\nin Largest Cluster") +
+  ylab("Density") +
+  labs(fill = "Method") +
+  scale_fill_manual(values = method_colors[names(method_colors) != "MMseqs2 + Foldseek"]) +
+  theme(legend.position = c(0.7, 0.6),
+        axis.text = element_text(color="black"))
+
+
+
+benchmarking_v_vs_v <- n_clusters_plt + p_largest_cluster_plt
+ggsave("figs/separate/benchmarking_v_vs_v.png", benchmarking_v_vs_v, height=3, width=7.5, units="in")
+```
+
+
+# Host-virus
+#--------------------------------#
+
+# Import the data
+```{r}
+hv_mmseqs <- read_tsv("inputs/benchmarking/host_vs_virus/mmseqs2.m8", col_names = c("query", "target", "fident", "alnlen", "mismatch", "gapopen", "qstart", "qend", "tstart", "tend", "evalue", "bits")) %>%
+  filter(evalue < 0.01) %>%
+  mutate(query = case_when(
+    query == "ENT4_Q7RTT9" ~ "ENT4",
+    query == "COLGALT1_Q8NBJ5" ~ "COLGALT1",
+    query == "gasd_P57764" ~ "GASD",
+    query == "dioxygenase_Q54K28" ~ "Dioxygenase"
+  ))
+
+hv_diamond <- read_tsv("inputs/benchmarking/host_vs_virus/diamond.m8", col_names = c("query", "target", "pident", "length", "mismatch", "gapopen", "qstart", "qend", "sstart", "send", "evalue", "bitscore")) %>%
+  filter(evalue < 0.01) %>%
+  mutate(query = case_when(
+    query == "ENT4_Q7RTT9" ~ "ENT4",
+    query == "COLGALT1_Q8NBJ5" ~ "COLGALT1",
+    query == "gasd_P57764" ~ "GASD",
+    query == "dioxygenase_Q54K28" ~ "Dioxygenase"
+  ))
+
+hv_jackhmmer <- read_tsv("inputs/benchmarking/host_vs_virus/jackhmmer.m8", col_names =c("query", "target", "evalue", "bits")) %>%
+  filter(evalue < 0.01) %>%
+  mutate(query = case_when(
+    query == "ENT4_Q7RTT9" ~ "ENT4",
+    query == "COLGALT1_Q8NBJ5" ~ "COLGALT1",
+    query == "gasd_P57764" ~ "GASD",
+    query == "dioxygenase_Q54K28" ~ "Dioxygenase"
+  ))
+
+dali_nf <- read_delim("inputs/new_functions_dali.tax.m8") %>%
+  mutate(z = as.numeric(z),
+         pident = as.numeric(pident)) %>%
+  select(-c("query_superkingdom", "query_phylum", "query_class", "query_order", "query_family", "query_genus", "query_species")) %>%
+  mutate(query = case_when(
+    query == "AF-Q7RTT9-F1-model_v4.pdb" ~ "ENT4",
+    query == "AF-Q8NBJ5-F1-model_v4.pdb" ~ "COLGALT1",
+    query == "AF-P57764-F1-model_v4.pdb" ~ "GASD",
+    query == "AF-Q54K28-F1-model_v4.pdb" ~ "Dioxygenase"
+  )) %>%
+  mutate(target = str_replace_all(target, ".pdb", ""))
+
+
+
+```
+
+# Aggregate the data
+```{r}
+dali_hv_agg <- dali_nf %>%
+  filter(z > 8) %>%
+  select(query, target) %>%
+  
+  left_join(
+    hv_mmseqs %>%
+      select(query, target) %>%
+      mutate(MMseqs2 = "1"),
+    by = c("query", "target")) %>%
+  mutate(MMseqs2 = ifelse(is.na(MMseqs2), 0, MMseqs2)) %>%
+  
+  left_join(
+    hv_diamond %>%
+      select(query, target) %>%
+      mutate(DIAMOND = "1"),
+    by = c("query", "target")) %>%
+  mutate(DIAMOND = ifelse(is.na(DIAMOND), 0, DIAMOND)) %>%
+  
+  left_join(
+    hv_jackhmmer %>%
+      select(query, target) %>%
+      mutate(jackhmmer = "1"),
+    by = c("query", "target")) %>%
+  mutate(jackhmmer = ifelse(is.na(jackhmmer), 0, jackhmmer))
+  
+  
+
+dali_hv_plt <- dali_hv_agg %>%
+  pivot_longer(-c(query, target)) %>%
+  rename(method = name) %>%
+  
+  group_by(query, method) %>%
+  count(value) %>%
+  mutate(p = n/sum(n)) %>%
+  
+  # ENT4 and GASD both were completely undetected with all methods. Overwrite the valyes to 1, and p to 0, so they are kept in subsequent filter step
+  ungroup() %>%
+  mutate(value = ifelse(query %in% c("ENT4", "GASD"), 1, value)) %>%
+  mutate(n = ifelse(query %in% c("ENT4", "GASD"), 0, n)) %>%
+  mutate(p = ifelse(query %in% c("ENT4", "GASD"), 0, p)) %>%
+  filter(value == 1) %>%
+  select(-n) %>%
+  
+  # Now add in rows for DALI. DALI P is obviously 1, because that is what we're tallying from
+  rbind(
+    tibble(
+      query = c("COLGALT1", "Dioxygenase", "ENT4", "GASD"), 
+      method = "DALI",
+      value = 1,
+      p = 1
+      )
+  ) %>%
+  
+  mutate(method = factor(method, ordered=T, levels=rev(c("DALI", "jackhmmer", "DIAMOND", "MMseqs2")))) %>%
+  mutate(query = factor(query, ordered=T, levels=c("GASD", "COLGALT1", "ENT4", "Dioxygenase"))) %>%
+
+  # plot
+  ggplot() +
+  
+  geom_col(
+    aes(y=method, x=p)
+  ) +
+  
+  facet_wrap(~query, ncol = 1) +
+  xlab("Fraction of Hits") +
+  ylab("Search Method") +
+  theme_classic() +
+  theme(strip.background = element_blank(),
+        axis.text = element_text(color="black")) +
+  scale_x_continuous(expand=c(0,0), labels = c(0, 0.25, 0.50, 0.75, 1))
+    
+  
+
+dali_hv_plt
+
+ggsave("figs/separate/benchmarking_h_vs_v.png", height=9, width=7, units="cm")
+
+```
+
+
+

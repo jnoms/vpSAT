@@ -1,0 +1,148 @@
+---
+title: "comparing_MSA_strategy"
+format: html
+---
+
+# Load packages
+```{r, include=F}
+library(tidyverse)
+library(ggpointdensity)
+library(hash)
+library(pheatmap)
+library(RColorBrewer)
+library(viridis)
+library(stringr) # for searching strtings for patterns eg str_count("1,2,3", ',') --> 2
+library(patchwork)
+library(svglite)
+
+library(pheatmap)
+
+library(igraph)
+library(ggraph)
+```
+
+# Load associated code and data
+```{r, include=F}
+source("constants.R")
+source("general_functions.R")
+source("load_data.R")
+
+viral_MSA_plddts <- read_tsv("inputs/MSA_comparisons/viral_msas_plddt.tsv", col_names = c("name", "plddt"))
+full_MSA_plddts <- read_tsv("inputs/MSA_comparisons/full_msas_plddt.tsv", col_names = c("name", "plddt"))
+full_MSA_depths <- read_tsv("inputs/MSA_comparisons/full_msa_depths.tsv", col_names = c("name", "depth"))
+
+```
+
+# Plot
+```{r}
+
+
+singleton_list <- clusters %>%
+  filter(cluster_count == 1) %>%
+  select(structure_rep) %>%
+  distinct() %>%
+  mutate(structure_rep = paste(structure_rep, ".pdb", sep="")) %>%
+  pull(structure_rep)
+
+plddts <- viral_MSA_plddts %>%
+  left_join(full_MSA_plddts, by = "name") %>%
+  rename(full = plddt.x, viral=plddt.y) %>%
+  mutate(status = ifelse(name %in% singleton_list, "Singleton", "Non-Singleton")) %>%
+  filter(!is.na(viral), !is.na(full))
+
+
+plddts$dif <- plddts$viral - plddts$full
+
+
+delta_plddt_plt <- plddts %>%
+  ggplot() +
+  
+  geom_violin(
+    aes(x=status, y = dif, color=status),
+    draw_quantiles = 0.5,
+    show.legend = F
+  ) +
+  geom_hline(yintercept = 0, linetype="dashed") +
+  
+  theme_classic() +
+  ylab("Change in pLDDT\n(Viral MSA - Full MSA)")  +
+  theme(axis.title.x = element_blank())
+delta_plddt_plt
+
+plddt_dist_plt <- plddts %>%
+  rename("Cluster Type" = status) %>%
+  
+  ggplot() +
+  
+  stat_density(
+    aes(x=full, fill=`Cluster Type`)
+  ) +
+  
+  theme_classic() +
+  xlab("pLDDT")
+plddt_dist_plt
+  
+
+# Do singletons tend to have lower MSA depth?
+# Note - be careful, bc these are not the structures that I actually clustered.
+msa_depth_dist_plt <- full_MSA_depths %>%
+  mutate(name = paste(name, ".pdb", sep="")) %>%
+  mutate(status = ifelse(name %in% singleton_list, "Singleton", "Non-Singleton")) %>%
+  
+  ggplot() +
+  stat_density(
+    aes(x=depth, fill=status)
+  ) +
+  
+  theme_classic() +
+  xlab("MSA Depth") +
+  scale_x_continuous(trans="log10") 
+msa_depth_dist_plt
+
+
+```
+# MSA depth vs plddt
+```{r}
+full_msa_plddt_depth <- full_MSA_plddts %>%
+  mutate(name = str_replace_all(name, ".pdb", "")) %>%
+  left_join(full_MSA_depths) %>%
+  mutate(name = paste(name, ".pdb", sep="")) %>%
+  mutate(status = ifelse(name %in% singleton_list, "Singleton", "Non-Singleton"))
+  
+#persons
+test <- cor.test(full_msa_plddt_depth$plddt, full_msa_plddt_depth$depth)
+
+test_cor <- test$estimate
+p <- test$p.value 
+label <- paste("Pearsons:\n", round(test_cor, 2), sep="")
+
+plddt_x_depth_plt <- full_msa_plddt_depth %>%
+  ggplot() +
+  
+  geom_point(
+    aes(y=plddt, x=depth, color=status),
+    show.legend=F
+  ) +
+  
+  scale_x_continuous(trans="log10") + 
+  theme_classic() +
+  xlab("MSA Depth") +
+  ylab("pLDDT") +
+  annotate("text", y=40, x=3500, label=label)
+
+plddt_x_depth_plt
+
+```
+
+# Agg
+```{r}
+
+msa_agg <- plddt_dist_plt +
+  msa_depth_dist_plt + theme(legend.position = "none") +
+  plddt_x_depth_plt +
+  delta_plddt_plt +
+  plot_layout(nrow=2, guides = "collect")
+
+ggsave("figs/agg/Sfigx_MSA.png", height=4, width=6, units="in")
+```
+
