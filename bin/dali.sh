@@ -102,9 +102,9 @@ else
 fi
 
 if [[ $THREADS != 1 ]] ; then
-    if ! command -v /usr/lib64/openmpi/bin/mpirun ; then
+    if ! command -v $MPIRUN_EXE ; then
         echo "You are attempting to multithread, but "
-        echo "mpirun not detected at /usr/lib64/openmpi/bin/mpirun!"
+        echo "mpirun not detected at the specified MPIRUN_EXE, $MPIRUN_EXE"
         exit 1
     fi
 fi
