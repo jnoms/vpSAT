@@ -38,11 +38,13 @@ usage() {
             The number of threads to use. CRITICAL: If set to more than 1, will be using
             MPI to handle the multithreading. On SGE, need to add #$ -pe mpi N (where N
             is the number of THREADS/the value of this commandline option) and may also
-            need to module load mpi. mpirun is assumed to be at the path 
-            /usr/lib64/openmpi/bin/mpirun - if you want to adjust the mpi path, need
-            to make a commandline input for the --MPIRUN_EXE flag of dali.pl.
+            need to module load mpi.
         -d --DALI_EXE {path} [dali.pl]
             Path to the dali.pl executable. Default assumes it is in your path.
+        -M --MPIRUN_EXE {path} [mpirun]
+            This sets the dali.pl --MPIRUN_EXE flag. Default assumes mpirun is in the 
+            path. Otherwise, set accordingly. The DALI default is
+            /usr/lib64/openmpi/bin/mpirun
 
         Some additional details:
         - Because DALI hates when paths are above 60 or 80 characters, the query_dir and 
@@ -58,7 +60,7 @@ if [ $# -le 4 ] ; then
 fi
 
 #Setting input
-while getopts q:t:o:f:s:n:d: option ; do
+while getopts q:t:o:f:s:n:d:M option ; do
         case "${option}"
         in
                 q) QUERY_DIR=${OPTARG};;
@@ -68,6 +70,7 @@ while getopts q:t:o:f:s:n:d: option ; do
                 s) SYMMETRY=${OPTARG};;
                 n) THREADS=${OPTARG};;
                 d) DALI_EXE=${OPTARG};;
+                M) MPIRUN_EXE=${OPTARG};;
         esac
 done
 
@@ -79,6 +82,7 @@ OUTPUT_FORMAT=${OUTPUT_FORMAT:-"summary,equivalences,transrot"}
 SYMMETRY=${SYMMETRY:-oneway}
 THREADS=${THREADS:-1}
 DALI_EXE=${DALI_EXE:-dali.pl}
+MPIRUN_EXE=${MPIRUN_EXE:-mpirun}
 
 #------------------------------------------------------------------------------#
 # Validate inputs and program availablity
@@ -146,7 +150,8 @@ time $DALI_EXE \
 --np $THREADS \
 --clean \
 $SYMMETRY_LINE \
---outfmt $OUTPUT_FORMAT
+--outfmt $OUTPUT_FORMAT \
+--MPIRUN_EXE $MPIRUN_EXE
 cd ..
 
 # Copy over the output data and clean up the temp directory
