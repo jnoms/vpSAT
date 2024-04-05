@@ -128,6 +128,11 @@ elif [[ $INFILE != "" ]] && [[ $INFILE_DB  != "" ]] ; then
     exit 1
 fi
 
+if [[ $OUT_FILE == "" ]] ; then
+    echo "--OUT_FILE (or -o) must be set!"
+    exit 1
+fi
+
 if [[ $DATABASE == "" ]] && [[ $CLUSTER_FILE == "" ]] ; then
     echo "--DATABASE or --CLUSTER_FILE must be set!"
     exit 1
