@@ -102,7 +102,7 @@ COUNT=1
 
 # Generate an list of IDs. Each time, need to check if it's valid (e.g. hasn't been used
 # before and isn't in the blacklist).
-alphabet="abcdefghijklmnopqrstuvwxyz"
+alphabet="abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
 while [[ $COUNT -le $TOTAL_INPUTS ]] ; do 
     c1="${alphabet:$(( RANDOM % ${#alphabet} )):1}"
     c2="${alphabet:$(( RANDOM % ${#alphabet} )):1}"
