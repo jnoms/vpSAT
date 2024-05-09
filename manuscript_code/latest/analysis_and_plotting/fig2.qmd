@@ -474,264 +474,52 @@ fig2 <- top / middle + plot_annotation(title = "Figure 2: Structural alignments 
 ggsave("figs/agg/fig2.png", fig2, height=13, width=20, units="cm")
 ```
 
-
-
-
-
-
-
-#-----------------------------------------------#
-# Storage
-#-----------------------------------------------#
-
-# Working - selecting structures for figure 2
+# Readin in AF2 foldseek alignment
 ```{r}
-dark_notdark_reps %>%
-  filter(cluster_ID == 26) %>%
-  filter(status == "Not Dark")
-
-dark_notdark_reps %>%
-  filter(cluster_ID == 26) %>%
-  filter(status == "Dark")
-
-clusters %>%
-  filter(cluster_member == "17_kDa_protein__YP_008855212__Olive_viral_satellite_RNA__1250316")
-
-
-clusters %>%
-  filter(seq_rep == "hypothetical_protein_AsGV044__YP_009513074__Agrotis_segetum_granulovirus__10464")
-
-
-
-dark_notdark_reps %>%
-  filter(cluster_ID == 707)
-
-dark_notdark_reps %>%
-  filter(cluster_ID == 461)
-
-
-# 754 - viroplasmin
-# 26 - NUDIX hydrolase
-# 106 - fibroblast growth factor
-
-ips %>%
-  filter(query == "Bro5__YP_009701505__Heliothis_virescens_ascovirus_3f__328614")
-
-clusters %>%
-  filter(cluster_ID == 59)
-
-
-
-
-dark_notdark_reps %>%
-  filter(cluster_ID == 215) %>%
-  filter(status == "Dark")
-
-
-
-# NOTE - if continuing to scan, am currently at 253 (moving left to right)
-
-
-
-# 215 - TATA-binding proteins. Compare with human 1CDW. Good example is hypothetical_protein_F8203_gp005__YP_009701471__Heliothis_virescens_ascovirus_3f__328614, unannotated in ascoviruses
-# 59 - looks like DNA-binding phosphoproteins (e.g. DNA-binding_phosphoprotein__YP_784257__Nile_crocodilepox_virus__1285600, which is Poxvirus I3. Vaccinia version is ssDNA-binding_phosphoprotein__YP_232954__Vaccinia_virus__10245	). A bunch of unannotated ones including in entomopoxivurses, as well as other viral families. Note that variola version (NP_042101.1) is mis-annotated as K3L - it really is I3L, like the rest of them. Note that cluster 131, baculoviruses, looks quite similar and is also a ssDNA binding protein. This paper has good fig 11 with motifs of pos charge/aromatics in ssDNA proteins, including Vaccinia I3L - https://www.ncbi.nlm.nih.gov/pmc/articles/PMC109737/
-
-
-
-
-
-# 48 - dUTPases - YP_009162370 and YP_009162371. Kinda interesting because they are probably next to one another, likely have a similar structure. Note that hhpred gives reasonable predictions for these guys, so may not want to highlight.
-# 126 - alpha/beta hydrolase - ACH96177.1_GrBNV_gp19-like_protein__YP_009345986__Kallithea_virus__1654582. Has a conserved catalytic triad compared to 6I8W - S137, D258, and H286 (https://elifesciences.org/articles/72824). Note that hhpred has strong results.
-
-
-
-dark_notdark_reps
-
-clusters %>%
-  filter(cluster_ID == 131)
-
-
-
-clusters %>%
-  filter(cluster_ID == 119) %>%
-  filter(grepl("YP_001129415", cluster_member))
-  
-```
-
-
-
-# More basic network
-```{r}
-# Create an edge list
-edges <- dark_notdark_reps %>%
-  select(structure_rep, seq_rep)
-
-# Create an igraph object
-graph <- graph_from_data_frame(edges, directed = FALSE)
-
-# Add node attributes for coloring
-V(graph)$status <- rep(NA, vcount(graph))  # Initialize with NA
-for(i in 1:nrow(dark_notdark_reps)) {
-  V(graph)[name == dark_notdark_reps$structure_rep[i]]$status <- dark_notdark_reps$status[i]
-  V(graph)[name == dark_notdark_reps$seq_rep[i]]$status <- dark_notdark_reps$status[i]
-}
-
-# Plot using ggraph
-ggraph(graph, layout = "fr") +
-  geom_edge_link() +
-  geom_node_point(aes(color = status, alpha=status)) +
-  theme_graph() +
-  scale_color_manual(values = c("Dark" = "red", "Not Dark" = "black")) +
-  scale_alpha_manual(values = c("Dark" = 1, "Not Dark" = 0.5))
-```
-
-
-# Network - FR layout
-```{r}
-set.seed(10)
-
-# Create an edge list
-edges <- dark_notdark_reps %>%
-  select(structure_rep, seq_rep)
-
-# Create an igraph object
-graph <- graph_from_data_frame(edges, directed = FALSE)
-
-# Add node attributes for coloring and cluster_IDs
-V(graph)$status <- rep(NA, vcount(graph))
-V(graph)$cluster_ID <- rep(NA, vcount(graph))
-for(i in 1:nrow(dark_notdark_reps)) {
-  V(graph)[name == dark_notdark_reps$structure_rep[i]]$status <- dark_notdark_reps$status[i]
-  V(graph)[name == dark_notdark_reps$seq_rep[i]]$status <- dark_notdark_reps$status[i]
-  V(graph)[name == dark_notdark_reps$structure_rep[i]]$cluster_ID <- dark_notdark_reps$cluster_ID[i]
-}
-
-# Identify representative nodes for each cluster
-clusters_graph <- clusters(graph)
-rep_nodes <- sapply(1:max(clusters_graph$membership), function(x) {
-  which(clusters_graph$membership == x)[1]  # Selects the first node in each cluster
-})
-
-# Map cluster_IDs to representative nodes
-cluster_labels <- setNames(V(graph)$cluster_ID[rep_nodes], V(graph)$name[rep_nodes])
-
-# Create a temporary ggraph plot to get node positions
-temp_plot <- ggraph(graph, layout = 'fr') + geom_node_point()
-temp_data <- ggplot_build(temp_plot)$data[[1]]  # Extract node positions from the plot
-
-# Combine temp_data with cluster_ID
-node_positions <- data.frame(name = V(graph)$name, x = temp_data$x, y = temp_data$y, cluster_ID = V(graph)$cluster_ID)
-
-# Calculate centroids of each cluster
-centroid_data <- aggregate(cbind(x, y) ~ cluster_ID, node_positions, mean)
-
-# Plot using ggraph
-seq_cluster_ips_network_plt <- ggraph(graph, layout = 'fr') +
-  geom_edge_link(width = 0.1) +
-  geom_node_point(aes(color = status, alpha = status), show.legend = F, size=0.8) +
-  geom_label(data = centroid_data, aes(x = x, y = y, label = cluster_ID),
-             label.size = 0, label.padding = unit(0.1, "lines"),
-             label.r = unit(0.1, "lines"), vjust = 2, check_overlap = TRUE, fill = "white") +
-  theme_graph() +
-  scale_color_manual(values = c("Dark" = "red", "Not Dark" = "black")) +
-  scale_alpha_manual(values = c("Dark" = 1, "Not Dark" = 0.5))
-
-seq_cluster_ips_network_plt
-```
-
-
-
-# What fraction of unannotated hypothetical proteins are not structurally connected?
-# idk about this stuff - just storage...
-```{r}
-
-dark_notdark_reps
-
-
-seq_reps_mapped
-
-# clusters %>%
-#   select(cluster_ID, structure_rep, cluster_count, seq_rep) %>%
-#   distinct() %>%
-#   mutate(status = ifelse(seq_rep %in% dark_seq_reps, "Dark", "Bright")) %>%
-#   group_by(cluster_ID) %>%
-#   count(status) %>%
-#   
-#   ungroup() %>%
-#   complete(cluster_ID, status, fill = list(n = 0)) %>%
-#   
-#   pivot_wider(names_from = status, values_from = n, 
-#               names_prefix = "", values_fill = list(n = 0),
-#               names_glue = "{status}_n") %>%
+# af2 <- read_tsv("inputs/full_euk_vs_af2db.filt.tax.m8")
 # 
-#   rowwise() %>%
-#   mutate(total = sum(Bright_n, Dark_n)) %>%
-#   ungroup() %>%
-#   filter(total > 1) %>%
-#   filter(Bright_n < 1)
-
-
-
-
-# seq_reps_mapped shows, for each sequence rep,  the percentage (p) of the members that are mapped via ips
-mapped_seq_reps_list <- seq_reps_mapped %>%
-  filter(p > .75) %>%
-  pull(seq_rep)
-
-# How many clusters don't contain at least one mapped seq rep?
-cluster_IDs_with_no_mapped_seq_clusters <- clusters %>%
-  select(cluster_ID, structure_rep, seq_rep) %>%
-  distinct() %>%
-  mutate(seq_rep_status = ifelse(seq_rep %in% mapped_seq_reps_list, "mapped", "not mapped")) %>%
-  
-  # Group and count how many mapped vs non-mapped for each cluster
-  group_by(cluster_ID) %>%
-  count(seq_rep_status) %>%
-  ungroup() %>%
-  
-  # Complete to get those clusters with only mapped or only unmapped
-  complete(cluster_ID, seq_rep_status, fill = list(n = 0)) %>%
-  
-  # Now, get counts for mapped - want to see how many have a 0
-  filter(seq_rep_status == "mapped") %>%
-  filter(n == 0) %>%
-  pull(cluster_ID)
-
-# For hypothetical proteins, determine how many fall into struc clusters that have or do not have any mapped seq clusters
-clusters %>%x
-  
-  
-
-clusters %>%
-  filter(seq_rep %in% dark_seq_reps)
-
+# 
+# # AF2 included the multi PART (split) proteins - I need to remove those from consideration
+# pr_list <- clusters %>%
+#   pull(cluster_member) %>%
+#   paste(., ".pdb", sep="")
+# 
+# af2 <- af2 %>%
+#   filter(query %in% pr_list)
+# 
+# af2_mapped_list <- af2 %>%
+#   pull(query) %>%
+#   unique() %>%
+#   str_replace_all(".pdb", "")
 ```
 
 
 
-# TMP
+# Isolating unannotated sequence reps with more than one cluster member
 ```{r}
-seq_reps_mapped
 
-af2 <- read_delim("inputs/full_euk_vs_af2db.filt.tax.m8") %>%
-  group_by(query) %>%
-  arrange(-alntmscore) %>%
-  slice_head(n = 5)
-
+benchmarking_set <- seq_reps_mapped %>%
+  filter(p < 0.25, total > 1) %>%
+  pull(seq_rep)
+length(benchmarking_set) # 4409
 
 
-af2 %>%
-  filter(alntmscore > 0.7) %>%
-  filter(alnlen > 200) %>%
-  mutate(query = str_replace_all(query, ".pdb", "")) %>%
-  filter(!query %in% ips_mapped) %>%
-  filter(target_genus == "Homo")
-  
+plddts <- read_tsv("inputs/plddts.txt", col_names = c("name", "plddt"))
 
 
-# Cy197__YP_009337597__Cynomolgus_cytomegalovirus__1919083	 -- related to HCMV US14, which is part of US12 family. Seems to be some sense of seq homology to bax inhibitor proteins already, thoguh https://www.ncbi.nlm.nih.gov/pmc/articles/PMC5367895/
+
+final_benchmark_set <- plddts %>%
+  mutate(name = str_replace_all(name, ".pdb", "")) %>%
+  filter(name %in% benchmarking_set) %>%
+  filter(plddt >= 70) %>%
+  pull(name)
+
+length(final_benchmark_set) # 1326
+
+final_benchmark_set %>%
+  tibble() %>%
+  write_tsv("outputs/2024-05-02_benchmark_set.txt")
 
 
 
 ```
-

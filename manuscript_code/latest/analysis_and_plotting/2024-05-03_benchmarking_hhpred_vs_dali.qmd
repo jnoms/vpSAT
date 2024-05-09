@@ -1,0 +1,166 @@
+---
+title: "2024-05-03_benchmarking_hhpred_vs_dali"
+format: html
+---
+
+# Load packages
+```{r, include=F}
+library(tidyverse)
+library(ggpointdensity)
+library(hash)
+library(pheatmap)
+library(RColorBrewer)
+library(viridis)
+library(stringr) # for searching strtings for patterns eg str_count("1,2,3", ',') --> 2
+library(patchwork)
+library(svglite)
+
+library(pheatmap)
+
+library(igraph)
+library(ggraph)
+```
+
+# Load associated code and data
+```{r, include=F}
+source("constants.R")
+source("general_functions.R")
+source("load_data.R")
+```
+
+# Load the data
+```{r}
+bench_dali <- read_tsv("inputs/benchmarking/2024-05-03_hhpred_vs_dali/2024-05-02_benchmark_dali_results.m8") %>%
+  mutate(target = target_id) %>%
+  select(-c(query_id, target_id)) %>%
+  filter(z >= 7) %>%
+  rename(dali_target = target, dali_alnlen = alnlen, dali_qlen=qlen, dali_tlen=tlen, dali_cov=cov, dali_pident=pident, dali_rmsd=rmsd, dali_z=z) %>%
+  mutate(dali_target = toupper(dali_target))
+
+bench_hhsearch <- read_tsv("inputs/benchmarking/2024-05-03_hhpred_vs_dali/2024-05-02_benchmark_hhsearch_E0.001.m8", col_names = c("query", "target", "tcov", "alnlen", "mismatch", "gapopen", "qstart", "qend", "tstart", "tend", "eval", "score")) %>%
+  rename(hhsearch_target = target, hhsearch_tcov = tcov, hhsearch_alnlen = alnlen, hhsearch_mismatch=mismatch, hhsearch_gapopen=gapopen,hhsearch_qstart=qstart, hhsearch_tstart=tstart,hhsearch_tend=tend,hhsearch_eval=eval,hhsearch_score=score) %>%
+  mutate(hhsearch_target = gsub("_([A-Z])$", "", hhsearch_target))
+
+
+full_benchmark_set <- read_tsv("outputs/2024-05-02_benchmark_set.txt", col_names = "name")
+```
+
+
+
+
+
+
+# Processing
+```{r}
+
+# Get the top alignment for all queries
+bench_dali <- bench_dali %>%
+  group_by(query) %>%
+  arrange(-dali_z) %>%
+  mutate(rank = row_number()) %>%
+  filter(rank == 1) %>%
+  select(-rank) %>%
+  mutate(query = str_replace_all(query, ".pdb", ""))
+
+
+bench_hhsearch <- bench_hhsearch %>%
+  group_by(query) %>%
+  arrange(-hhsearch_score) %>%
+  mutate(rank = row_number()) %>%
+  filter(rank == 1) %>%
+  select(-rank)
+
+
+bench_combined <- full_join(
+  bench_dali,
+  bench_hhsearch,
+  by=c("query")
+) %>%
+  select(query, dali_z, hhsearch_score, hhsearch_eval) %>%
+  mutate(dali_z = ifelse(is.na(dali_z), 0, dali_z),
+         hhsearch_score = ifelse(is.na(hhsearch_score), 0, hhsearch_score),
+         hhsearch_eval = ifelse(is.na(hhsearch_eval), 0, hhsearch_eval)
+  )
+  
+
+cor.test(bench_combined$dali_z, bench_combined$hhsearch_score)
+# p < 2.2e-16
+# pearson corr: 0.59, 95% interval: 0.54, 0.64
+
+
+benchmark_scatter_plt <- bench_combined %>%
+  ggplot() +
+  
+  geom_point(
+    aes(x=dali_z, y=hhsearch_score) 
+  ) +
+  
+  theme_classic() +
+  xlab("Maximum Z (Dali)") +
+  ylab("Maximum Score (HHsearch)")
+
+benchmark_scatter_plt
+
+
+both_mapped_list <- bench_combined %>%
+  filter(dali_z != 0, hhsearch_score != 0) %>%
+  pull(query)
+
+dali_only_list <-  bench_combined %>%
+  filter(dali_z != 0, hhsearch_score == 0) %>%
+  pull(query)
+
+hhsearch_only_list <-  bench_combined %>%
+  filter(dali_z == 0, hhsearch_score != 0) %>%
+  pull(query)
+
+
+benchmark_counts <- full_benchmark_set %>%
+  mutate(
+    status = case_when(
+      name %in% both_mapped_list ~ "Both\nDALI and\nHHsearch",
+      name %in% dali_only_list ~ "DALI only",
+      name %in% hhsearch_only_list ~ "HHsearch only",
+      TRUE ~ "No Alignments"
+    )
+  ) %>%
+  
+  count(status)
+  
+benchmark_counts_plt <- benchmark_counts %>%
+  
+  mutate(status = factor(status, ordered=T, levels=c("No Alignments", "Both\nDALI and\nHHsearch", "DALI only", "HHsearch only"))) %>%
+  
+  ggplot() +
+  
+  geom_col(
+    aes(
+      x = status, y = n, fill=status
+    ),
+    show.legend = F
+  ) +
+  geom_text(
+    aes(
+      x = status, y = n + 30, label = n
+    )
+  ) +
+  
+  xlab("Alignment Against the PDB") +
+  ylab("Number of Proteins") +
+  theme_classic() +
+  scale_y_continuous(expand=c(0,0)) +
+  coord_cartesian(ylim=c(NA, 700)) +
+  scale_fill_manual(values = c("No Alignment" = "grey", "Both\nDALI and\nHHsearch" = "#B8D1E0", "DALI only" = "#B8D1E0", "HHsearch only" = "#F4A4AB"))
+benchmark_counts_plt
+
+```
+
+
+# output
+```{r}
+benchmark_plt <- benchmark_counts_plt
+
+ggsave("figs/separate/2024-05-03_hhsearch_vs_dali_benchmark.png", benchmark_plt, height=3, width = 4, units="in")
+
+```
+

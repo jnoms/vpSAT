@@ -312,38 +312,3 @@ ggsave("figs/separate/new_functions_bottom.png", bottom, width=24, height = 13, 
 
 ```
 
-
-
-# TMP
-```{r}
-dali_nf %>%
-  select(query) %>%
-  distinct()
-
-dali_nf %>%
-  filter(query == "Dioxygenase") %>%
-  filter(z >= 8) %>%
-  select(target_family) %>%
-  distinct() %>%
-  mutate(genome_type = hash_lookup(genome_types_hash, target_family))
-
-
-
-dali_nf %>%
-  filter(query == "Dioxygenase") %>%
-  filter(z >= 8) %>%
-  filter(target_family %in% c("Betaflexiviridae", "Potyviridae", "Closteroviridae", "Alphaflexiviridae")) %>%
-  filter(!grepl("PART", target))
-
-
-
-dali_nf %>%
-  filter(query == "ENT4") %>%
-  filter(z >= 8)
-
-
-
-clusters %>%
-  filter(cluster_ID == 131)
-```
-
